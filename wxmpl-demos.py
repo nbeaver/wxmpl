@@ -15,11 +15,11 @@ __version__ = '1.0'
 
 
 import wx
+import wxmpl
 import matplotlib
 import matplotlib.cm as cm
 from pylab import array, arange, sin, cos, exp, pi, randn, normpdf, meshgrid, \
     convolve
-from wxmpl import PlotFrame
 
 
 def plot_simple(fig):
@@ -262,7 +262,8 @@ class Demo:
         self.dpi = dpi
 
     def run(self):
-        frame = PlotFrame(None, -1, self.title, size=self.size, dpi=self.dpi)
+        frame = wxmpl.PlotFrame(None, -1, self.title, size=self.size,
+            dpi=self.dpi)
         self.plotFunction(frame.get_figure())
         frame.draw()
         frame.Show()
@@ -303,6 +304,11 @@ class TestFrame(wx.Frame):
 
         self.SetSizer(sizer)
         self.Fit()
+
+        wx.EVT_WINDOW_DESTROY(self, self.OnWindowDestroy)
+
+    def OnWindowDestroy(self, evt):
+        wx.GetApp().ExitMainLoop()
 
 
 def main():

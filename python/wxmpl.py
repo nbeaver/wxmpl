@@ -19,6 +19,8 @@ __version__ = '0.9'
 
 
 import wx
+import matplotlib
+matplotlib.use('WXAgg')
 from matplotlib.axes import PolarAxes
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
