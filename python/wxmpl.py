@@ -114,12 +114,22 @@ class DestructableViewMixin:
         self.view = None
 
 
+def format_coord(axes, xdata, ydata):
+    if xdata is None or ydata is None:
+        return ''
+    return axes.format_coord(xdata, ydata)
+
+
 class PlotPanelDirector(DestructableViewMixin):
-    def __init__(self, view):
+    def __init__(self, view, zoom=True, selection=True):
         self.view = view
-        self.zoomEnabled = True
+        self.zoomEnabled = zoom
+        self.selectionEnabled = selection
         self.limits = AxesLimits()
         self.leftButtonPoint = None
+
+    def setSelection(self, state):
+        self.selectionEnabled = state
 
     def setZoomEnabled(self, state):
         self.zoomEnabled = state
@@ -137,26 +147,35 @@ class PlotPanelDirector(DestructableViewMixin):
         view = self.view
         axes, xdata, ydata = find_axes(view, x, y)
 
-        if self.zoomEnabled and not is_polar(axes):
+        if self.selectionEnabled and not is_polar(axes):
             self.leftButtonPoint = (x, y)
             view.cursor.setCross()
             view.crosshairs.clear()
 
     def leftButtonUp(self, evt, x, y):
-        if self.leftButtonPoint is None:
-            return
-
         view = self.view
+
+        if self.leftButtonPoint is None:
+            view.notifyPoint(x, y)
+            return None
+
         x0, y0 = self.leftButtonPoint
         self.leftButtonPoint = None
         view.rubberband.clear()
 
-        if x0 == x or y0 == y:
+        if x0 == x:
+            if y0 == y:
+                view.notifyPoint(x, y)
+            return
+        elif y0 == y:
             return
 
         xdata = ydata = None
         axes, xrange, yrange = find_selected_axes(view, x0, y0, x, y)
-        if axes is not None:
+
+        if not self.zoomEnabled:
+            self.view.notifySelection(x0, y0, x, y)
+        elif axes is not None:
             xdata, ydata = axes.transData.inverse_xy_tup((x,y))
             if self.limits.set(axes, xrange, yrange):
                 self.view.draw()
@@ -165,10 +184,10 @@ class PlotPanelDirector(DestructableViewMixin):
             view.cursor.setNormal()
         elif is_polar(axes):
             view.cursor.setNormal()
-            view.location.set(axes.format_coord(xdata, ydata))
+            view.location.set(format_coord(axes, xdata, ydata))
         else:
             view.crosshairs.set(x, y)
-            view.location.set(axes.format_coord(xdata, ydata))
+            view.location.set(format_coord(axes, xdata, ydata))
 
     def rightButtonDown(self, evt, x, y):
         pass
@@ -198,7 +217,7 @@ class PlotPanelDirector(DestructableViewMixin):
             if axes is None:
                 view.location.clear()
             else:
-                view.location.set(axes.format_coord(xdata, ydata))
+                view.location.set(format_coord(axes, xdata, ydata))
 
     def canvasMouseMotion(self, evt, x, y):
         view = self.view
@@ -209,13 +228,13 @@ class PlotPanelDirector(DestructableViewMixin):
     def polarAxesMouseMotion(self, evt, x, y, axes, xdata, ydata):
         view = self.view
         view.cursor.setNormal()
-        view.location.set(axes.format_coord(xdata, ydata))
+        view.location.set(format_coord(axes, xdata, ydata))
 
     def axesMouseMotion(self, evt, x, y, axes, xdata, ydata):
         view = self.view
         view.cursor.setCross()
         view.crosshairs.set(x, y)
-        view.location.set(axes.format_coord(xdata, ydata))
+        view.location.set(format_coord(axes, xdata, ydata))
 
 
 class Painter(DestructableViewMixin):
@@ -226,14 +245,21 @@ class Painter(DestructableViewMixin):
     TEXT_FOREGROUND = wx.BLACK
     TEXT_BACKGROUND = wx.WHITE
 
-    def __init__(self, view):
+    def __init__(self, view, enabled=True):
         self.view = view
         self.lastValue = None
+        self.enabled = enabled
+
+    def setEnabled(self, state):
+        self.enabled = state
 
     def set(self, *value):
-        value = self.formatValue(value)
-        self._paint(value)
-        self.lastValue = value
+        if self.enabled:
+            value = self.formatValue(value)
+            self._paint(value)
+            self.lastValue = value
+        else:
+            self.clear()
 
     def clear(self):
         if self.lastValue is not None:
@@ -329,30 +355,35 @@ class RubberbandPainter(Painter):
 
 
 class CursorChanger(DestructableViewMixin):
-    def __init__(self, view):
+    def __init__(self, view, enabled=True):
         self.view = view
         self.cursor = wx.CURSOR_DEFAULT
+        self.enabled = enabled
+
+    def setEnabled(self, state):
+        self.enabled = state
 
     def setNormal(self):
-        if self.cursor != wx.CURSOR_DEFAULT:
+        if self.cursor != wx.CURSOR_DEFAULT and self.enabled:
             self.cursor = wx.CURSOR_DEFAULT
             self.view.SetCursor(wx.STANDARD_CURSOR)
 
     def setCross(self):
-        if self.cursor != wx.CURSOR_CROSS:
+        if self.cursor != wx.CURSOR_CROSS and self.enabled:
             self.cursor = wx.CURSOR_CROSS
             self.view.SetCursor(wx.CROSS_CURSOR)
 
 
 class PlotPanel(FigureCanvasWxAgg):
-    def __init__(self, parent, id, size=(6.0, 3.70), dpi=96):
+    def __init__(self, parent, id, size=(6.0, 3.70), dpi=96, cursor=True,
+     location=True, crosshairs=True, selection=True, zoom=True):
         FigureCanvasWxAgg.__init__(self, parent, id, Figure(size, dpi))
 
-        self.cursor = CursorChanger(self)
-        self.location = LocationPainter(self)
-        self.crosshairs = CrosshairPainter(self)
-        self.rubberband = RubberbandPainter(self)
-        self.director = PlotPanelDirector(self)
+        self.cursor = CursorChanger(self, cursor)
+        self.location = LocationPainter(self, location)
+        self.crosshairs = CrosshairPainter(self, crosshairs)
+        self.rubberband = RubberbandPainter(self, selection)
+        self.director = PlotPanelDirector(self, zoom, selection)
 
         self.figure.set_edgecolor('black')
         self.figure.set_facecolor('white')
@@ -376,14 +407,33 @@ class PlotPanel(FigureCanvasWxAgg):
     def get_figure(self):
         return self.figure
 
-    def setZoomEnabled(self, state):
+    def set_zoom(self, state):
         self.director.setZoomEnabled(state)
+
+    def set_selection(self, state):
+        self.rubberband.setEnabled(state)
+        self.director.setSelectionEnabled(state)
+
+    def set_location(self, state):
+        self.location.setEnabled(state)
+
+    def set_crosshairs(self, state):
+        self.crosshairs.setEnabled(state)
+
+    def set_cursor(self, state):
+        self.cursor.setEnabled(state)
 
     def draw(self):
         if self.director.canDraw():
             wx.BeginBusyCursor()
             FigureCanvasWxAgg.draw(self)
             wx.EndBusyCursor()
+
+    def notifyPoint(self, x, y):
+        print 'notifyPoint():', x, y
+
+    def notifySelection(self, x1, y1, x2, y2):
+        print 'notifySelection():',  (x1, y1),  (x2, y2)
 
     def _get_canvas_xy(self, evt):
         return evt.GetX(), self.figure.bbox.height() - evt.GetY()
@@ -432,9 +482,11 @@ class PlotPanel(FigureCanvasWxAgg):
 
 
 class PlotFrame(wx.Frame):
-    def __init__(self, parent, id, title, size=(6.0, 3.7), dpi=96, **kwds):
+    def __init__(self, parent, id, title, size=(6.0, 3.7), dpi=96, cursor=True,
+     location=True, crosshairs=True, selection=True, zoom=True, **kwds):
         wx.Frame.__init__(self, parent, id, title, **kwds)
-        self.panel = PlotPanel(self, -1, size, dpi)
+        self.panel = PlotPanel(self, -1, size, dpi, cursor, location,
+            crosshairs, selection, zoom)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
@@ -446,6 +498,21 @@ class PlotFrame(wx.Frame):
 
     def get_figure(self):
         return self.panel.figure
+
+    def set_zoom(self, state):
+        self.panel.set_zoom(state)
+
+    def set_selection(self, state):
+        self.panel.set_selection(state)
+
+    def set_location(self, state):
+        self.panel.set_location(state)
+
+    def set_crosshairs(self, state):
+        self.panel.set_crosshairs(state)
+
+    def set_cursor(self, state):
+        self.panel.set_cursor(state)
 
     def draw(self):
         self.panel.draw()
