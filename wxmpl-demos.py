@@ -25,9 +25,11 @@ from pylab import array, arange, sin, cos, exp, pi, randn, normpdf, meshgrid, \
 def plot_simple(fig):
     t = arange(0.0, 2.0, 0.01)
     s = sin(2*pi*t)
+    c = cos(2*pi*t)
 
     axes = fig.gca()
     axes.plot(t, s, linewidth=1.0)
+    axes.plot(t, c, linewidth=1.0)
 
     axes.set_xlabel('time (s)')
     axes.set_ylabel('voltage (mV)')
@@ -70,7 +72,8 @@ def plot_histogram(fig):
     axes.set_xlim((40, 160))
     axes.set_xlabel('Smarts')
     axes.set_ylabel('P')
-    axes.set_title(r'$\rm{IQ:}\/ \mu=100,\/ \sigma=15$')
+    axes.set_title('IQ: mu=100, sigma=15')
+#    axes.set_title(r'$\rm{IQ:}\/ \mu=100,\/ \sigma=15$')
 
 
 def plot_fill(fig):

@@ -1,6 +1,6 @@
 # Name: wxmpl
 # Purpose: painless matplotlib embedding for wxPython
-# Author: Ken McIvor <mcivken@iit.edu>
+# Author: Ken McIvor <mcivor@iit.edu>
 #
 # Copyright 2005 Illinois Institute of Technology
 #
@@ -35,10 +35,6 @@ def is_polar(axes):
     return isinstance(axes, PolarAxes)
 
 
-def get_bbox_lims(bbox):
-    return bbox.intervalx().get_bounds(), bbox.intervaly().get_bounds()
-
-
 def find_axes(canvas, x, y):
     axes = None
     for a in canvas.get_figure().get_axes():
@@ -46,7 +42,7 @@ def find_axes(canvas, x, y):
             if axes is None:
                 axes = a
             else:
-                return None, None, None # XXX: broken for plot_axes() demo
+                return None, None, None
 
     if axes is None:
         return None, None, None
@@ -56,6 +52,9 @@ def find_axes(canvas, x, y):
 
 
 def find_selected_axes(canvas, x1, y1, x2, y2):
+    def get_bbox_lims(bbox):
+        return bbox.intervalx().get_bounds(), bbox.intervaly().get_bounds()
+
     axes = None
     bbox = bound_vertices([(x1, y1), (x2, y2)])
 
@@ -64,7 +63,7 @@ def find_selected_axes(canvas, x1, y1, x2, y2):
             if axes is None:
                 axes = a
             else:
-                return None, None, None # XXX: broken for plot_axes() demo
+                return None, None, None
 
     if axes is None:
         return None, None, None
@@ -121,10 +120,11 @@ def format_coord(axes, xdata, ydata):
 
 
 class PlotPanelDirector(DestructableViewMixin):
-    def __init__(self, view, zoom=True, selection=True):
+    def __init__(self, view, zoom=True, selection=True, rightClickUnzoom=True):
         self.view = view
         self.zoomEnabled = zoom
         self.selectionEnabled = selection
+        self.rightClickUnzoom = rightClickUnzoom
         self.limits = AxesLimits()
         self.leftButtonPoint = None
 
@@ -133,6 +133,9 @@ class PlotPanelDirector(DestructableViewMixin):
 
     def setZoomEnabled(self, state):
         self.zoomEnabled = state
+
+    def setRightClickUnzoom(self, state):
+        self.rightClickUnzoom = state
 
     def canDraw(self):
         return self.leftButtonPoint is None
@@ -144,11 +147,12 @@ class PlotPanelDirector(DestructableViewMixin):
         pass
 
     def leftButtonDown(self, evt, x, y):
+        self.leftButtonPoint = (x, y)
+
         view = self.view
         axes, xdata, ydata = find_axes(view, x, y)
 
         if self.selectionEnabled and not is_polar(axes):
-            self.leftButtonPoint = (x, y)
             view.cursor.setCross()
             view.crosshairs.clear()
 
@@ -195,7 +199,8 @@ class PlotPanelDirector(DestructableViewMixin):
     def rightButtonUp(self, evt, x, y):
         view = self.view
         axes, xdata, ydata = find_axes(view, x, y)
-        if axes is not None and self.limits.restore(axes):
+        if (axes is not None and self.zoomEnabled and self.rightClickUnzoom
+        and self.limits.restore(axes)):
             view.crosshairs.clear()
             view.draw()
             view.crosshairs.set(x, y)
@@ -430,10 +435,10 @@ class PlotPanel(FigureCanvasWxAgg):
             wx.EndBusyCursor()
 
     def notifyPoint(self, x, y):
-        print 'notifyPoint():', x, y
+        pass # print 'notifyPoint():', x, y
 
     def notifySelection(self, x1, y1, x2, y2):
-        print 'notifySelection():',  (x1, y1),  (x2, y2)
+        pass # print 'notifySelection():',  (x1, y1),  (x2, y2)
 
     def _get_canvas_xy(self, evt):
         return evt.GetX(), self.figure.bbox.height() - evt.GetY()
@@ -488,10 +493,68 @@ class PlotFrame(wx.Frame):
         self.panel = PlotPanel(self, -1, size, dpi, cursor, location,
             crosshairs, selection, zoom)
 
+        mainMenu = wx.MenuBar()
+        menu = wx.Menu()
+
+        id = wx.NewId()
+        menu.Append(id, '&Save As...\tCtrl+S',
+            'Save a copy of the current plot')
+        wx.EVT_MENU(self, id, self.OnMenuFileSave)
+
+        id = wx.NewId()
+        menu.AppendSeparator()
+
+        id = wx.NewId()
+        menu.Append(id, '&Close Window\tCtrl+W',
+            'Close the current plot window')
+        wx.EVT_MENU(self, id, self.OnMenuFileClose)
+
+        mainMenu.Append(menu, '&File')
+        menu = wx.Menu()
+
+        id = wx.NewId()
+        menu.Append(id, '&About...', 'Display version information')
+        wx.EVT_MENU(self, id, self.OnMenuHelpAbout)
+
+        mainMenu.Append(menu, '&Help')
+        self.SetMenuBar(mainMenu)
+
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
         self.SetSizer(sizer)
         self.Fit()
+
+    def OnMenuFileSave(self, event):
+        fileName = wx.FileSelector('Save Plot', default_extension='png',
+            wildcard=('Portable Network Graphics (*.png)|*.png|'
+                + 'Encapsulated Postscript (*.eps)|*.eps|All files (*.*)|*.*'),
+            parent=self, flags=wx.SAVE|wx.OVERWRITE_PROMPT)
+
+        if not fileName:
+            return
+
+        try:
+            self.panel.print_figure(fileName)
+        except IOError, e:
+            if e.strerror:
+                err = e.strerror
+            else:
+                err = e
+
+            wx.MessageBox('Could not save file: %s' % err, 'Error - plotit',
+                parent=self, style=wx.OK|wx.ICON_ERROR)
+
+    def OnMenuFileClose(self, event):
+        self.Close()
+
+    def OnMenuHelpAbout(self, event):
+        ABOUT_MESSAGE = """\
+wxmpl.PlotFrame %s
+Written by Ken McIvor <mcivor@iit.edu>
+Copyright 2005 Illinois Institute of Technology"""
+
+        wx.MessageBox(ABOUT_MESSAGE % __version__,
+            'About wxmpl.PlotFrame', parent=self, style=wx.OK)
 
     def set_figure(self, figure):
         self.panel.set_figure(figure)
@@ -517,3 +580,15 @@ class PlotFrame(wx.Frame):
     def draw(self):
         self.panel.draw()
 
+
+#EVT_LOG_ID = wx.NewId()
+#
+#def EVT_LOG(win, func):
+#    win.Connect(-1, -1, EVT_LOG_ID, func)
+#
+#class LogEvent(wx.PyEvent):
+#    def __init__(self, message, levelNumber):
+#        wx.PyEvent.__init__(self)
+#        self.SetEventType(EVT_LOG_ID)
+#        self.__message = message
+#        self.__levelNumber = levelNumber
