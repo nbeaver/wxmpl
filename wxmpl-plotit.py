@@ -2,7 +2,7 @@
 
 # Name: wxmpl-plotit
 # Purpose: Experiment data visualization
-# Author: Ken McIvor <mcivken@iit.edu>
+# Author: Ken McIvor <mcivor@iit.edu>
 #
 # Copyright 2004-2005 Illinois Institute of Technology
 #

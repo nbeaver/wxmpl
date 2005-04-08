@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Purpose: Demonstrate different plots from the matplotlib examples collection
-# Author: Ken McIvor <mcivken@iit.edu>
+# Author: Ken McIvor <mcivor@iit.edu>
 #
 # Copyright 2002-2004 John D. Hunter, 2005 Illinois Institute of Technology
 #
@@ -201,6 +201,14 @@ def plot_layered_images(fig):
 
     # make these smaller to increase the resolution
     dx, dy = 0.05, 0.05
+    axes = fig.gca()
+    axes.plot(t, s, linewidth=1.0)
+    axes.plot(t, c, linewidth=1.0)
+
+    axes.set_xlabel('time (s)')
+    axes.set_ylabel('voltage (mV)')
+    axes.set_title('About as simple as it gets, folks')
+    axes.grid(True)
 
     x = arange(-3.0, 3.0, dx)
     y = arange(-3.0, 3.0, dy)

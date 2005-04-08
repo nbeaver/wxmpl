@@ -27,7 +27,6 @@ from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-
 __all__ = ['PlotPanel', 'PlotFrame']
 
 
@@ -51,10 +50,11 @@ def find_axes(canvas, x, y):
     return axes, xdata, ydata
 
 
-def find_selected_axes(canvas, x1, y1, x2, y2):
-    def get_bbox_lims(bbox):
-        return bbox.intervalx().get_bounds(), bbox.intervaly().get_bounds()
+def get_bbox_lims(bbox):
+    return bbox.intervalx().get_bounds(), bbox.intervaly().get_bounds()
 
+
+def find_selected_axes(canvas, x1, y1, x2, y2):
     axes = None
     bbox = bound_vertices([(x1, y1), (x2, y2)])
 
@@ -384,6 +384,7 @@ class PlotPanel(FigureCanvasWxAgg):
      location=True, crosshairs=True, selection=True, zoom=True):
         FigureCanvasWxAgg.__init__(self, parent, id, Figure(size, dpi))
 
+        self.isDestroyed = False
         self.cursor = CursorChanger(self, cursor)
         self.location = LocationPainter(self, location)
         self.crosshairs = CrosshairPainter(self, crosshairs)
@@ -397,17 +398,16 @@ class PlotPanel(FigureCanvasWxAgg):
         wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
 
     def OnDestroy(self, evt):
+        self.isDestroyed = True
+
         objects = [self.cursor, self.location, self.rubberband,
             self.crosshairs, self.director]
-
-        self._onPaint = lambda *a, **b: None
         for obj in objects:
             obj.destroy()
 
-    def set_figure(self, figure):
-        self.figure = figure
-        figure.set_canvas(self)
-        self.draw()
+    def _onPaint(self, evt):
+        if not self.isDestroyed and isinstance(self, FigureCanvasWxAgg):
+            FigureCanvasWxAgg._onPaint(self, evt)
 
     def get_figure(self):
         return self.figure
@@ -429,10 +429,8 @@ class PlotPanel(FigureCanvasWxAgg):
         self.cursor.setEnabled(state)
 
     def draw(self):
-        if self.director.canDraw():
-            wx.BeginBusyCursor()
+        if self.director.canDraw() and isinstance(self, FigureCanvasWxAgg):
             FigureCanvasWxAgg.draw(self)
-            wx.EndBusyCursor()
 
     def notifyPoint(self, x, y):
         pass # print 'notifyPoint():', x, y
@@ -501,7 +499,6 @@ class PlotFrame(wx.Frame):
             'Save a copy of the current plot')
         wx.EVT_MENU(self, id, self.OnMenuFileSave)
 
-        id = wx.NewId()
         menu.AppendSeparator()
 
         id = wx.NewId()
@@ -555,9 +552,6 @@ Copyright 2005 Illinois Institute of Technology"""
 
         wx.MessageBox(ABOUT_MESSAGE % __version__,
             'About wxmpl.PlotFrame', parent=self, style=wx.OK)
-
-    def set_figure(self, figure):
-        self.panel.set_figure(figure)
 
     def get_figure(self):
         return self.panel.figure
