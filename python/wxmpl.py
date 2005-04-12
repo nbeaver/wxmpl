@@ -26,6 +26,7 @@ from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
+import os.path
 
 __all__ = ['PlotPanel', 'PlotFrame']
 
@@ -46,7 +47,7 @@ def find_axes(canvas, x, y):
     if axes is None:
         return None, None, None
 
-    xdata, ydata = axes.transData.inverse_xy_tup((x,y))
+    xdata, ydata = axes.transData.inverse_xy_tup((x, y))
     return axes, xdata, ydata
 
 
@@ -158,9 +159,10 @@ class PlotPanelDirector(DestructableViewMixin):
 
     def leftButtonUp(self, evt, x, y):
         view = self.view
+        axes, xdata, ydata = find_axes(view, x, y)
 
-        if self.leftButtonPoint is None:
-            view.notifyPoint(x, y)
+        if self.leftButtonPoint is None and axes is not None:
+            view.notifyPoint(axes, x, y)
             return None
 
         x0, y0 = self.leftButtonPoint
@@ -168,8 +170,8 @@ class PlotPanelDirector(DestructableViewMixin):
         view.rubberband.clear()
 
         if x0 == x:
-            if y0 == y:
-                view.notifyPoint(x, y)
+            if y0 == y and axes is not None:
+                view.notifyPoint(axes, x, y)
             return
         elif y0 == y:
             return
@@ -177,12 +179,13 @@ class PlotPanelDirector(DestructableViewMixin):
         xdata = ydata = None
         axes, xrange, yrange = find_selected_axes(view, x0, y0, x, y)
 
-        if not self.zoomEnabled:
-            self.view.notifySelection(x0, y0, x, y)
-        elif axes is not None:
-            xdata, ydata = axes.transData.inverse_xy_tup((x,y))
-            if self.limits.set(axes, xrange, yrange):
-                self.view.draw()
+        if axes is not None:
+            xdata, ydata = axes.transData.inverse_xy_tup((x, y))
+            if self.zoomEnabled:
+                if self.limits.set(axes, xrange, yrange):
+                    self.view.draw()
+            else:
+                self.view.notifySelection(axes, x0, y0, x, y)
 
         if axes is None:
             view.cursor.setNormal()
@@ -230,15 +233,15 @@ class PlotPanelDirector(DestructableViewMixin):
         view.crosshairs.clear()
         view.location.clear()
 
-    def polarAxesMouseMotion(self, evt, x, y, axes, xdata, ydata):
-        view = self.view
-        view.cursor.setNormal()
-        view.location.set(format_coord(axes, xdata, ydata))
-
     def axesMouseMotion(self, evt, x, y, axes, xdata, ydata):
         view = self.view
         view.cursor.setCross()
         view.crosshairs.set(x, y)
+        view.location.set(format_coord(axes, xdata, ydata))
+
+    def polarAxesMouseMotion(self, evt, x, y, axes, xdata, ydata):
+        view = self.view
+        view.cursor.setNormal()
         view.location.set(format_coord(axes, xdata, ydata))
 
 
@@ -379,12 +382,44 @@ class CursorChanger(DestructableViewMixin):
             self.view.SetCursor(wx.CROSS_CURSOR)
 
 
+EVT_POINT_ID = wx.NewId()
+
+def EVT_POINT(win, func):
+    win.Connect(-1, -1, EVT_POINT_ID, func)
+
+class PointEvent(wx.PyEvent):
+    def __init__(self, axes, x, y):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_POINT_ID)
+        self.axes = axes
+        self.x = x
+        self.y = y
+        self.xdata, self.ydata = axes.transData.inverse_xy_tup((x, y))
+
+
+EVT_SELECTION_ID = wx.NewId()
+
+def EVT_SELECTION(win, func):
+    win.Connect(-1, -1, EVT_SELECTION_ID, func)
+
+class SelectionEvent(wx.PyEvent):
+    def __init__(self, axes, x1, y1, x2, y2):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_SELECTION_ID)
+        self.axes = axes
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.x1data, self.y1data = axes.transData.inverse_xy_tup((x1, y1))
+        self.x2data, self.y2data = axes.transData.inverse_xy_tup((x2, y2))
+
+
 class PlotPanel(FigureCanvasWxAgg):
     def __init__(self, parent, id, size=(6.0, 3.70), dpi=96, cursor=True,
      location=True, crosshairs=True, selection=True, zoom=True):
         FigureCanvasWxAgg.__init__(self, parent, id, Figure(size, dpi))
 
-        self.isDestroyed = False
         self.cursor = CursorChanger(self, cursor)
         self.location = LocationPainter(self, location)
         self.crosshairs = CrosshairPainter(self, crosshairs)
@@ -398,15 +433,13 @@ class PlotPanel(FigureCanvasWxAgg):
         wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
 
     def OnDestroy(self, evt):
-        self.isDestroyed = True
-
         objects = [self.cursor, self.location, self.rubberband,
             self.crosshairs, self.director]
         for obj in objects:
             obj.destroy()
 
     def _onPaint(self, evt):
-        if not self.isDestroyed and isinstance(self, FigureCanvasWxAgg):
+        if isinstance(self, FigureCanvasWxAgg):
             FigureCanvasWxAgg._onPaint(self, evt)
 
     def get_figure(self):
@@ -432,56 +465,40 @@ class PlotPanel(FigureCanvasWxAgg):
         if self.director.canDraw() and isinstance(self, FigureCanvasWxAgg):
             FigureCanvasWxAgg.draw(self)
 
-    def notifyPoint(self, x, y):
-        pass # print 'notifyPoint():', x, y
+    def notifyPoint(self, axes, x, y):
+        wx.PostEvent(self, PointEvent(axes, x, y))
 
-    def notifySelection(self, x1, y1, x2, y2):
-        pass # print 'notifySelection():',  (x1, y1),  (x2, y2)
+    def notifySelection(self, axes, x1, y1, x2, y2):
+        wx.PostEvent(self, SelectionEvent(axes, x1, y1, x2, y2))
 
     def _get_canvas_xy(self, evt):
         return evt.GetX(), self.figure.bbox.height() - evt.GetY()
 
     def _onKeyDown(self, evt):
-        key = self._get_key(evt)
-        evt.Skip()
         self.director.keyDown(evt)
-        FigureCanvasBase.key_press_event(self, key)
 
     def _onKeyUp(self, evt):
-        key = self._get_key(evt)
-        evt.Skip()
         self.director.keyUp(evt)
-        FigureCanvasBase.key_release_event(self, key)
  
     def _onLeftButtonDown(self, evt):
         x, y = self._get_canvas_xy(evt)
-        evt.Skip()
         self.director.leftButtonDown(evt, x, y)
-        FigureCanvasBase.button_press_event(self, x, y, 1)
 
     def _onLeftButtonUp(self, evt):
         x, y = self._get_canvas_xy(evt)
-        evt.Skip()
         self.director.leftButtonUp(evt, x, y)
-        FigureCanvasBase.button_release_event(self, x, y, 1)
 
     def _onRightButtonDown(self, evt):
         x, y = self._get_canvas_xy(evt)
-        evt.Skip()
         self.director.rightButtonDown(evt, x, y)
-        FigureCanvasBase.button_press_event(self, x, y, 3)        
 
     def _onRightButtonUp(self, evt):
         x, y = self._get_canvas_xy(evt)
-        evt.Skip()
         self.director.rightButtonUp(evt, x, y)
-        FigureCanvasBase.button_release_event(self, x, y, 3)        
 
     def _onMotion(self, evt):
         x, y = self._get_canvas_xy(evt)
-        evt.Skip()
         self.director.mouseMotion(evt, x, y)
-        FigureCanvasBase.motion_notify_event(self, x, y)
 
 
 class PlotFrame(wx.Frame):
@@ -530,6 +547,17 @@ class PlotFrame(wx.Frame):
         if not fileName:
             return
 
+        path, ext = os.path.splitext(fileName)
+        ext = ext[1:].lower()
+
+        if ext != 'png' and ext != 'eps':
+            error_message = (
+                'Only the PNG and EPS image formats are supported.\n'
+                'A file extension of `png\' or `eps\' must be used.')
+            wx.MessageBox(error_message, 'Error - plotit',
+                parent=self, style=wx.OK|wx.ICON_ERROR)
+            return
+
         try:
             self.panel.print_figure(fileName)
         except IOError, e:
@@ -573,16 +601,3 @@ Copyright 2005 Illinois Institute of Technology"""
 
     def draw(self):
         self.panel.draw()
-
-
-#EVT_LOG_ID = wx.NewId()
-#
-#def EVT_LOG(win, func):
-#    win.Connect(-1, -1, EVT_LOG_ID, func)
-#
-#class LogEvent(wx.PyEvent):
-#    def __init__(self, message, levelNumber):
-#        wx.PyEvent.__init__(self)
-#        self.SetEventType(EVT_LOG_ID)
-#        self.__message = message
-#        self.__levelNumber = levelNumber
