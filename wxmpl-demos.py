@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-# Purpose: Demonstrate different plots from the matplotlib examples collection
-# Author: Ken McIvor <mcivor@iit.edu>
+# Purpose: Demonstrates different plots from the matplotlib examples collection
+# Author: Ken McIvor <mcivor@iit.edu>, deriving from the matplotlib examples
+# collection
 #
 # Copyright 2002-2004 John D. Hunter, 2005 Illinois Institute of Technology
 #
@@ -38,6 +39,26 @@ def plot_simple(fig):
 
 
 def plot_subplot(fig):
+    def f(t):
+        return cos(2*pi*t) * exp(-t)
+    t1 = arange(0.0, 5.0, 0.10)
+    t2 = arange(0.0, 5.0, 0.02)
+
+    a1 = fig.add_subplot(2, 1, 1)
+    a1.plot(t1, f(t1), 'bo')
+    a1.plot(t2, f(t2), 'k')
+    a1.grid(True)
+    a1.set_title('A Tale of 2 Subplots')
+    a1.set_ylabel('Damped oscillation')
+
+    a2 = fig.add_subplot(2, 1, 2)
+    a2.plot(t2, cos(2*pi*t2), 'r>')
+    a2.grid(True)
+    a2.set_xlabel('time (s)')
+    a2.set_ylabel('Undamped')
+
+
+def plot_subplot_sharex(fig):
     def f(t):
         return cos(2*pi*t) * exp(-t)
     t1 = arange(0.0, 5.0, 0.10)
@@ -94,9 +115,6 @@ def plot_log(fig):
     a1 = fig.add_subplot(2, 1, 1)
     a1.semilogx(t, sin(2*pi*t))
     a1.set_ylabel('semilogx')
-# XXX: when x-axis ticks are disabled, axes.format_coord() yields "x=, y=..."
-#    a1.set_xticks([])
-#    a1.set_xticklabels([])
     a1.grid(True)
 
     a2 = fig.add_subplot(2, 1, 2)
@@ -259,6 +277,10 @@ def plot_axes(fig):
     a.set_yticks([])
 
 
+#
+# Demo Infrastructure
+#
+
 class Demo:
     def __init__(self, title, plotFunction, size=(6.0, 3.7), dpi=96):
         self.title = title
@@ -285,6 +307,7 @@ class Demo:
 DEMONSTRATIONS = [
     Demo('Simple Plot', plot_simple),
     Demo('Subplots', plot_subplot),
+    Demo('Shared X Axes', plot_subplot_sharex),
     Demo('Histogram Plot', plot_histogram),
     Demo('Filled Polygons', plot_fill),
     Demo('Logarithmic Scaling', plot_log),
