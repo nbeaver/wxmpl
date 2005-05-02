@@ -47,10 +47,12 @@ def plot_subplot(fig):
     a1.plot(t1, f(t1), 'bo')
     a1.plot(t2, f(t2), 'k')
     a1.grid(True)
-    a1.set_title('A tale of 2 subplots')
+    a1.set_title('Two Subplots Sharing an Axis')
     a1.set_ylabel('Damped oscillation')
+    for ticklabel in a1.get_xticklabels():
+        ticklabel.set_visible(False)
 
-    a2 = fig.add_subplot(2, 1, 2)
+    a2 = fig.add_subplot(2, 1, 2, sharex=a1)
     a2.plot(t2, cos(2*pi*t2), 'r>')
     a2.grid(True)
     a2.set_xlabel('time (s)')
