@@ -21,5 +21,5 @@ setup(
     license = 'MIT X11/XFree86 style',
     description = 'A library for plotting with matplotlib from wxPython',
     package_dir = {'': 'python'},
-    py_modules = ['wxmpl', 'stripchart']
+    py_modules = ['wxmpl']
 )

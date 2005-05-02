@@ -24,10 +24,12 @@ import weakref
 
 import matplotlib
 matplotlib.use('WXAgg')
-from matplotlib.axes import PolarAxes
+from matplotlib.axes import PolarAxes, _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
+from matplotlib.font_manager import FontProperties
+from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
 __all__ = ['PlotPanel', 'PlotFrame', 'EVT_POINT', 'EVT_SELECTION']
@@ -924,7 +926,16 @@ class PlotPanel(FigureCanvasWxAgg):
 class PlotFrame(wx.Frame):
     """
     Provides a matplotlib canvas embedded in a wxPython top-level window.
+
+    @cvar ABOUT_TITLE: Title of the "About" dialog.
+    @cvar ABOUT_MESSAGE: Contents of the "About" dialog.
     """
+
+    ABOUT_TITLE = 'About wxmpl.PlotFrame'
+    ABOUT_MESSAGE = ('wxmpl.PlotFrame %s\n' %  __version__
+        + 'Written by Ken McIvor <mcivor@iit.edu>\n'
+        + 'Copyright 2005 Illinois Institute of Technology')
+
     def __init__(self, parent, id, title, size=(6.0, 3.7), dpi=96, cursor=True,
      location=True, crosshairs=True, selection=True, zoom=True, **kwds):
         """
@@ -1016,13 +1027,8 @@ class PlotFrame(wx.Frame):
         """
         Handles Help->About menu events.
         """
-        ABOUT_MESSAGE = """\
-wxmpl.PlotFrame %s
-Written by Ken McIvor <mcivor@iit.edu>
-Copyright 2005 Illinois Institute of Technology"""
-
-        wx.MessageBox(ABOUT_MESSAGE % __version__,
-            'About wxmpl.PlotFrame', parent=self, style=wx.OK)
+        wx.MessageBox(self.ABOUT_MESSAGE, self.ABOUT_TITLE, parent=self,
+            style=wx.OK)
 
     def get_figure(self):
         """
@@ -1071,3 +1077,362 @@ Copyright 2005 Illinois Institute of Technology"""
         Draw the associated C{Figure} onto the screen.
         """
         self.panel.draw()
+
+
+#
+# Automatically resizing vectors and matrices
+#
+
+class VectorBuffer:
+    """
+    Manages a Numerical Python vector, automatically growing it as necessary to
+    accomodate new entries.
+    """
+    def __init__(self):
+        self.data = Numeric.zeros((16,), Numeric.Float)
+        self.nextRow = 0
+
+    def clear(self):
+        """
+        Zero and reset this buffer without releasing the underlying array.
+        """
+        self.data[:] = 0.0
+        self.nextRow = 0
+
+    def reset(self):
+        """
+        Zero and reset this buffer, releasing the underlying array.
+        """
+        self.data = Numeric.zeros((16,), Numeric.Float)
+        self.nextRow = 0
+
+    def append(self, point):
+        """
+        Append a new entry to the end of this buffer's vector.
+        """
+        nextRow = self.nextRow
+        data = self.data
+
+        resize = 1
+        if nextRow == data.shape[0]:
+            nR = int(Numeric.ceil(nR*1.5))
+        else:
+            resize = 0
+
+        if resize:
+            self.data = Numeric.zeros((nR,), Numeric.Float)
+            self.data[0:data.shape[0]] = data
+
+        self.data[nextRow] = point
+        self.nextRow += 1
+
+    def getData(self):
+        """
+        Returns the current vector or C{None} if the buffer contains no data.
+        """
+        if self.nextRow == 0:
+            return None
+        else:
+            return self.data[0:self.nextRow]
+
+
+class MatrixBuffer:
+    """
+    Manages a Numerical Python matrix, automatically growing it as necessary to
+    accomodate new rows of entries.
+    """
+    def __init__(self):
+        self.data = Numeric.zeros((16, 1), Numeric.Float)
+        self.nextRow = 0
+
+    def clear(self):
+        """
+        Zero and reset this buffer without releasing the underlying array.
+        """
+        self.data[:, :] = 0.0
+        self.nextRow = 0
+
+    def reset(self):
+        """
+        Zero and reset this buffer, releasing the underlying array.
+        """
+        self.data = Numeric.zeros((16, 1), Numeric.Float)
+        self.nextRow = 0
+
+    def append(self, row):
+        """
+        Append a new row of entries to the end of this buffer's matrix.
+        """
+        row = Numeric.asarray(row, Numeric.Float)
+        nextRow = self.nextRow
+        data = self.data
+        nPts = row.shape[0]
+
+        if nPts == 0:
+            return
+
+        resize = 1
+        if nextRow == data.shape[0]:
+            nC = data.shape[1]
+            nR = int(Numeric.ceil(nR*1.5))
+            if nC < nPts:
+                nC = nPts
+        elif data.shape[1] < nPts:
+            nR = data.shape[0]
+            nC = nPts
+        else:
+            resize = 0
+
+        if resize:
+            self.data = Numeric.zeros((nR, nC), Numeric.Float)
+            rowEnd, colEnd = data.shape
+            self.data[0:rowEnd, 0:colEnd] = data
+
+        self.data[nextRow, 0:nPts] = row
+        self.nextRow += 1
+
+    def getData(self):
+        """
+        Returns the current matrix or C{None} if the buffer contains no data.
+        """
+        if self.nextRow == 0:
+            return None
+        else:
+            return self.data[0:self.nextRow, :]
+
+
+#
+# Utility functions used by the StripCharter
+#
+
+def make_delta_bbox(X1, Y1, X2, Y2):
+    """
+    Returns a C{Bbox} describing the range of difference between two sets of X
+    and Y coordinates.
+    """
+    return make_bbox(get_delta(X1, X2), get_delta(Y1, Y2))
+
+
+def get_delta(X1, X2):
+    """
+    Returns the vector of contiguous, different points between two vectors.
+    """
+    n1 = X1.shape[0]
+    n2 = X2.shape[0]
+
+    if n1 < n2:
+        return X2[n1:]
+    elif n1 == n2:
+        # shape is no longer a reliable indicator of change, so assume things
+        # are different
+        return X2
+    else:
+        return X2
+
+
+def make_bbox(X, Y):
+    """
+    Returns a C{Bbox} that contains the supplied sets of X and Y coordinates.
+    """
+    if X is None or X.shape[0] == 0:
+        x1 = x2 = 0.0
+    else:
+        x1 = min(X)
+        x2 = max(X)
+
+    if Y is None or Y.shape[0] == 0:
+        y1 = y2 = 0.0
+    else:
+        y1 = min(Y)
+        y2 = max(Y)
+
+    return Bbox(Point(Value(x1), Value(y1)), Point(Value(x2), Value(y2)))
+
+
+#
+# Strip-charts lines using a matplotlib axes
+#
+
+class StripCharter:
+    """
+    Plots and updates lines on a matplotlib C{Axes}.
+    """
+    def __init__(self, axes):
+        """
+        Create a new C{StripCharter} associated with a matplotlib C{axes}.
+        """
+        self.axes = axes
+        self.channels = []
+        self.lines = {}
+
+    def setChannels(self, channels):
+        """
+        Specify the data-providers of the lines to be plotted and updated.
+        """
+        self.lines = None
+        self.channels = channels[:]
+
+        # minimal Axes.cla()
+        self.axes.legend_ = None
+        self.axes.lines = []
+
+    def update(self):
+        """
+        Redraw the axes with updated lines if the line data has changed.
+        """
+        axes = self.axes
+        figureCanvas = axes.figure.canvas
+        zoomed = figureCanvas.zoomed(axes)
+
+        redraw = 0
+        if self.lines is None:
+            self._create_plot()
+            redraw = 1
+        else:
+            for channel in self.channels:
+                redraw = self._update_channel(channel, zoomed) or redraw
+
+        if redraw:
+            if not zoomed:
+                axes.autoscale_view()
+            figureCanvas.draw()
+
+    def _create_plot(self):
+        """
+        Initially plot the lines corresponding to the data-providers.
+        """
+        self.lines = {}
+        axes = self.axes
+
+        styleGen = _process_plot_var_args()
+        for channel in self.channels:
+            self._plot_channel(channel, styleGen)
+
+        self.axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
+            handletextsep=0.01, prop=FontProperties(size='xx-small'))
+
+#        # Draw the legend on the figure instead...
+#        handles = [self.lines[x] for x in self.channels]
+#        labels = [x._label for x in handles]
+#        self.axes.figure.legend(handles, labels, 'upper right',
+#            pad=0.1, handlelen=0.02, handletextsep=0.01, numpoints=2,
+#            prop=FontProperties(size='xx-small'))
+
+    def _plot_channel(self, channel, styleGen):
+        """
+        Initially plot a line corresponding to one of the data-providers.
+        """
+        x = channel.getX()
+        y = channel.getY()
+        if x is None or y is None:
+            x = y = Numeric.zeros((0,), Numeric.Float)
+        lineStyle = channel.getLineStyle()
+
+        if lineStyle:
+            line = styleGen(x, y, channel.lineStyle).next()
+        else:
+            line = styleGen(x, y).next()
+
+        line.set_label(channel.getLabel())
+        self.axes.add_line(line)
+        self.lines[channel] = line
+
+    def _update_channel(self, channel, zoomed):
+        """
+        Replot a line corresponding to one of the data-providers if the data
+        has changed.
+        """
+        if channel.hasChanged():
+            channel.setChanged(False)
+        else:
+            return False
+
+        axes = self.axes
+        line = self.lines[channel]
+        newX = channel.getX()
+        newY = channel.getY()
+
+        if newX is None or newY is None:
+            return False
+
+        oldX = line._x
+        oldY = line._y
+
+        x, y = newX, newY
+        line.set_data(x, y)
+        if line.get_transform() != axes.transData:
+            xys = axes._get_verts_in_data_coords(
+                line.get_transform(), zip(x, y))
+            x = Numeric.array([a for (a, b) in xys])
+            y = Numeric.array([b for (a, b) in xys])
+        axes.update_datalim_numerix(x, y)
+
+        if zoomed:
+            return axes.viewLim.overlaps(
+                make_delta_bbox(oldX, oldY, newX, newY))
+        else:
+            return True
+
+
+#
+# Data-providing interface to the StripCharter
+#
+
+class Channel:
+    """
+    Provides line data for a C{StripCharter} to plot.  Subclasses of C{Channel}
+    override the template methods C{getX()} and C{getY()} to provide plot data
+    and call C{setChanged(True)} when that data has changed.
+    """
+    def __init__(self, name, lineStyle=None):
+        """
+        Creates a new C{Channel} with the matplotlib label C{name}.  If the
+        keyword argument C{lineStyle} is provided, it will be used as the style
+        string when the line is plotted.
+        """
+        self.name = name
+        self.lineStyle = lineStyle
+        self.changed = False
+
+    def getLabel(self):
+        """
+        Returns the matplotlib label for this channel of data.
+        """
+        return self.name
+
+    def getLineStyle(self):
+        """
+        Returns the style string to use when the line is plotted, or C{None} to
+        use an automatically generated style.
+        """
+        return self.lineStyle
+
+    def hasChanged(self):
+        """
+        Returns a boolean indicating if the line data has changed.
+        """
+        return self.changed
+
+    def setChanged(self, changed):
+        """
+        Sets the change indicator to the boolean value C{changed}.
+
+        @note: C{StripCharter} instances call this method after detecting a
+        change, so a C{Channel} cannot be shared among multiple charts.
+        """
+        self.changed = changed
+
+    def getX(self):
+        """
+        Template method that returns the vector of X axis data or C{None} if
+        there is no data available.
+        """
+        return None
+
+    def getY(self):
+        """
+        Template method that returns the vector of Y axis data or C{None} if
+        there is no data available.
+        """
+        return None
+
