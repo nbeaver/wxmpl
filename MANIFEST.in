@@ -1,2 +1,3 @@
 include README.txt LICENSE.txt ChangeLog MANIFEST.in MANIFEST
 include wxmpl-demos.py wxmpl-stripchart-demo.py wxmpl-plotit.py
+recursive-include doc *

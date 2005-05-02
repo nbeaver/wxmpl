@@ -8,11 +8,10 @@
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 """
-This module embeds matplotlib plotting canvases in wxPython programs, providing
-some bells and whistles for interactive use.
-
-Real documentation needs to be written.  For now your best bet is to check out
-the `wxmpl-demos.py' program included with this release.
+Embedding matplotlib in wxPython applications is straightforward, but the
+default plotting widget lacks the capabilities necessary for interactive use.
+WxMpl (wxPython+matplotlib) is a library of components that provide these
+missing features.
 """
 
 __version__ = '0.9'
@@ -32,7 +31,8 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-__all__ = ['PlotPanel', 'PlotFrame', 'EVT_POINT', 'EVT_SELECTION']
+__all__ = ['PlotPanel', 'PlotFrame', 'StripCharter', 'Channel', 'EVT_POINT',
+    'EVT_SELECTION']
 
 
 #
@@ -194,7 +194,7 @@ class PlotPanelDirector(DestructableViewMixin):
     Encapsulates all of the user-interaction logic required by the
     C{PlotPanel}, following the Humble Dialog Box pattern proposed by Michael
     Feathers:
-        http://www.objectmentor.com/resources/articles/TheHumbleDialogBox.pdf
+    U{http://www.objectmentor.com/resources/articles/TheHumbleDialogBox.pdf}
     """
     def __init__(self, view, zoom=True, selection=True, rightClickUnzoom=True):
         """
@@ -737,8 +737,7 @@ class SelectionEvent(wx.PyEvent):
 
 class PlotPanel(FigureCanvasWxAgg):
     """
-    Provides a matplotlib canvas suitable for embedding in wxPython
-    applications.
+    A matplotlib canvas suitable for embedding in wxPython applications.
     """
     def __init__(self, parent, id, size=(6.0, 3.70), dpi=96, cursor=True,
      location=True, crosshairs=True, selection=True, zoom=True):
@@ -925,7 +924,7 @@ class PlotPanel(FigureCanvasWxAgg):
 
 class PlotFrame(wx.Frame):
     """
-    Provides a matplotlib canvas embedded in a wxPython top-level window.
+    A matplotlib canvas embedded in a wxPython top-level window.
 
     @cvar ABOUT_TITLE: Title of the "About" dialog.
     @cvar ABOUT_MESSAGE: Contents of the "About" dialog.
@@ -1278,7 +1277,8 @@ class StripCharter:
 
     def update(self):
         """
-        Redraw the axes with updated lines if the line data has changed.
+        Redraw the associated axes with updated lines if any of the channels'
+        data has changed.
         """
         axes = self.axes
         figureCanvas = axes.figure.canvas
@@ -1380,7 +1380,7 @@ class StripCharter:
 
 class Channel:
     """
-    Provides line data for a C{StripCharter} to plot.  Subclasses of C{Channel}
+    Provides data for a C{StripCharter} to plot.  Subclasses of C{Channel}
     override the template methods C{getX()} and C{getY()} to provide plot data
     and call C{setChanged(True)} when that data has changed.
     """
