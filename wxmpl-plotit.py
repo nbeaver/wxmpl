@@ -16,9 +16,17 @@ __version__ = '1.0'
 import Numeric
 import os.path
 import sys
-import xdp
 import wx
 from wxmpl import PlotFrame
+
+try:
+    import xdp
+except ImportError:
+    sys.stderr.write("""\
+wxmpl-plotit.py required the `xdp' package to run.  The latest version of this
+package is available from: http://sourceforge.net/projects/xdp
+""")
+    sys.exit(1)
 
 
 class PlotApp(wx.App):
