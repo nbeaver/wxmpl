@@ -18,7 +18,7 @@ class StripchartApp(wx.App):
         self.timer = wx.PyTimer(self.OnTimer)
         self.numPoints = 0
 
-        self.frame = wxmpl.PlotFrame(None, -1, 'Stripchart Demo')
+        self.frame = wxmpl.PlotFrame(None, -1, 'WxMpl Stripchart Demo')
         self.frame.Show(True)
 
         # The data to plot

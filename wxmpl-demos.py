@@ -341,7 +341,7 @@ class TestFrame(wx.Frame):
 
 def main():
     app = wx.PySimpleApp()
-    frame = TestFrame(None, -1, 'wxmpl demos')
+    frame = TestFrame(None, -1, 'WxMpl Demos')
     frame.Show(True)
     app.MainLoop()
 

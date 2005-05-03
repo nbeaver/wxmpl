@@ -272,6 +272,9 @@ class PlotPanelDirector(DestructableViewMixin):
         """
         Handles wxPython left-click-release events.
         """
+        if self.leftButtonPoint is None:
+            return
+
         view = self.view
         axes, xdata, ydata = find_axes(view, x, y)
 
@@ -970,9 +973,8 @@ class PlotFrame(wx.Frame):
         mainMenu.Append(menu, '&File')
         menu = wx.Menu()
 
-        id = wx.NewId()
-        menu.Append(id, '&About...', 'Display version information')
-        wx.EVT_MENU(self, id, self.OnMenuHelpAbout)
+        menu.Append(wx.ID_ABOUT, '&About...', 'Display version information')
+        wx.EVT_MENU(self, wx.ID_ABOUT, self.OnMenuHelpAbout)
 
         mainMenu.Append(menu, '&Help')
         self.SetMenuBar(mainMenu)
@@ -1034,6 +1036,106 @@ class PlotFrame(wx.Frame):
         Returns the figure associated with this canvas.
         """
         return self.panel.figure
+
+    def set_cursor(self, state):
+        """
+        Enable or disable the changing mouse cursor.  When enabled, the cursor
+        changes from the normal arrow to a square cross when the mouse enters a
+        matplotlib axes on this canvas.
+        """
+        self.panel.set_cursor(state)
+
+    def set_location(self, state):
+        """
+        Enable or disable the display of the matplotlib axes coordinates of the
+        mouse in the lower left corner of the canvas.
+        """
+        self.panel.set_location(state)
+
+    def set_crosshairs(self, state):
+        """
+        Enable or disable drawing crosshairs through the mouse cursor when it
+        is inside a matplotlib axes.
+        """
+        self.panel.set_crosshairs(state)
+
+    def set_selection(self, state):
+        """
+        Enable or disable area selections, where user selects a rectangular
+        area of the canvas by left-clicking and dragging the mouse.
+        """
+        self.panel.set_selection(state)
+
+    def set_zoom(self, state):
+        """
+        Enable or disable zooming in when the user makes an area selection and
+        zooming out again when the user right-clicks.
+        """
+        self.panel.set_zoom(state)
+
+    def draw(self):
+        """
+        Draw the associated C{Figure} onto the screen.
+        """
+        self.panel.draw()
+
+
+#
+# wxApp providing a matplotlib canvas in a top-level wxPython window
+#
+
+class PlotApp(wx.App):
+    """
+    A wxApp that provides a matplotlib canvas embedded in a wxPython top-level
+    window, encapsulating wxPython's nuts and bolts.
+
+    @cvar ABOUT_TITLE: Title of the "About" dialog.
+    @cvar ABOUT_MESSAGE: Contents of the "About" dialog.
+    """
+
+    ABOUT_TITLE = None
+    ABOUT_MESSAGE = None
+
+    def __init__(self, title="WxMpl", size=(6.0, 3.7), dpi=96, cursor=True,
+     location=True, crosshairs=True, selection=True, zoom=True):
+        """
+        Creates a new PlotApp, which creates a PlotFrame top-level window.
+
+        The keyword argument C{title} specifies the title of this top-level
+        window.
+
+        All of other the named keyword arguments to this constructor have the
+        same meaning as those arguments to the constructor of C{PlotPanel}.
+        """
+        self.title = title
+        self.size = size
+        self.dpi = dpi
+        self.cursor = cursor
+        self.location = location
+        self.crosshairs = crosshairs
+        self.selection = selection
+        self.zoom = zoom
+        wx.App.__init__(self)
+
+    def OnInit(self):
+        self.panel = panel = PlotFrame(None, -1, self.title, self.size,
+            self.dpi, self.cursor, self.location, self.crosshairs,
+            self.selection, self.zoom)
+
+        if self.ABOUT_TITLE is not None:
+            panel.ABOUT_TITLE = self.ABOUT_TITLE
+
+        if self.ABOUT_MESSAGE is not None:
+            panel.ABOUT_MESSAGE = self.ABOUT_MESSAGE
+
+        panel.Show(True)
+        return True
+
+    def get_figure(self):
+        """
+        Returns the figure associated with this canvas.
+        """
+        return self.panel.get_figure()
 
     def set_cursor(self, state):
         """
