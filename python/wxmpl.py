@@ -973,8 +973,9 @@ class PlotFrame(wx.Frame):
         mainMenu.Append(menu, '&File')
         menu = wx.Menu()
 
-        menu.Append(wx.ID_ABOUT, '&About...', 'Display version information')
-        wx.EVT_MENU(self, wx.ID_ABOUT, self.OnMenuHelpAbout)
+        id = wx.NewId()
+        menu.Append(id, '&About...', 'Display version information')
+        wx.EVT_MENU(self, id, self.OnMenuHelpAbout)
 
         mainMenu.Append(menu, '&Help')
         self.SetMenuBar(mainMenu)
