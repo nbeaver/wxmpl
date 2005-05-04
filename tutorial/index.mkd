@@ -1,19 +1,11 @@
-<!--
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
- <meta http-equiv="content-type" content="text/html; charset=utf-8" />
- <title>Getting Started with WxMpl</title>
- <link rel="stylesheet" type="text/css" media="screen" href="css/scren.css" />
- <link rel="stylesheet" type="text/css" media="print"  href="css/print.css" />
-</head>
-<body>
--->
+Getting Started with WxMpl and Matplotlib
+=========================================
 
-Getting Started with WxMpl
---------------------------
+Ken McIvor  
+May 3, 2005
 
 
-### Introduction ###
+### <a name="sec1"></a>Introduction  ###
 
 WxMpl is a library of [wxPython][wx] widgets which provide interactive plotting
 capabilities via the [matplotlib][mpl] 2D plotting library.  Although
@@ -30,8 +22,8 @@ In order to support as many of matplotlib's features as possible, WxMpl enters
 the scene at the lowest level possible, defining an alterative matplotlib
 canvas.  As a result, figures must be constructed using matplotlib's
 object-oriented API, rather than its Matlab-compatible pylab interface.  This
-is a bit unfortunate, because the documentation of the OO API is sparse and
-programmer-centric, but this tutorial's here to grease the skids.
+is a bit unfortunate, because the documentation of the OO API is sparse
+compared to that of the pylab interface.
 
 To understand WxMpl's place in the word, it is necessary to delve briefly into
 matplotlib's architechture.  Under the hood, matplotlib represents each
@@ -75,8 +67,7 @@ As you can see in the screen shot below, this is not a dreadfully exciting
 example: the plot window is completely empty.  This should come as no surprise,
 since this example makes no effort to plot anything.
 
- [![Figure 1](images/tn_ex01.png)](images/ex01.png)
-
+ [![Figure 1](images/tn_ex01.png)](images/ex01.png)  
  __Figure 1: An empty canvas__
 
 Let's proceed onward to the "Hello World" of plotting examples: the venerable
@@ -85,11 +76,11 @@ Figure object, create an matplotlib *Axes* in it, and then use that Axes to
 plot `y=sin(pi*x)`.  This example also imports some functions from the
 `matplotlib.numerix` module.
 
-Numerix is a compatability layer for Python's two array libraries, [NumPy and
-NumArray][numeric], and is used in all of these examples to ensure
-cross-platform compatability.  If you're going to tie your application to
-matplotlib, you may want to consider taking advantage of Numerix for the same
-reason.
+Numerix is a compatability layer for Python's two array libraries,
+[NumPy][numeric] and [NumArray][numeric], and is used in all of these examples
+to ensure cross-platform compatability.  If you're going to tie your
+application to matplotlib, you may want to consider taking advantage of Numerix
+for the same reason.
 
 Please note that the boilerplate code presented in Example 1 has been omitted
 here.  To run this example, paste it where the "This spot is where the plotting
@@ -121,9 +112,8 @@ lot of matplotlib's Figure class in this example -- just one call to
 class to do most of the the heavy lifting for them: *Axes*.  It may come as
 no surprise, then, that `gca` is an acronym for "get current axes".
 
- [![Figure 2](images/tn_ex02.png)](images/ex02.png)
-
- __Figure 2: Holy sin plot!__
+ [![Figure 2](images/tn_ex02.png)](images/ex02.png)  
+ __Figure 2: Holy sinusoids!__
 
 What's all this business about Axes?  Like Matlab, matplotlib supports
 subplots, e.g. having more than one plot in a figure.  To pull this off neatly,
@@ -163,8 +153,7 @@ Plotting multiple lines on an Axes is straightforward:
 
  __[Listing 3](examples/ex03.py): Plotting multiple lines__
 
- [![Figure 3](images/tn_ex03.png)](images/ex03.png)
-
+ [![Figure 3](images/tn_ex03.png)](images/ex03.png)  
  __Figure 3: Three lines, one Axes__
 
 Although these calls to `plot()` could be rewritten as one call, `axes.plot(x,
@@ -202,8 +191,7 @@ legend properties.  For detailed explaination of the different ways to call
 `legend()` and what the legend properties are, please refer to the matplotlib
 [documentation][ax_legend]. 
 
- [![Figure 4](images/tn_ex04.png)](images/ex04.png)
-
+ [![Figure 4](images/tn_ex04.png)](images/ex04.png)  
  __Figure 4: Now that's much clearer__
 
 Now that we have some way of identifying the different lines of a plot, we can
@@ -240,8 +228,7 @@ matplotlib cycles through a permutation of line types, colors, and symbols.
 
  __[Listing 5](examples/ex05.py): Line styles__
 
- [![Figure 5](images/tn_ex05.png)](images/ex05.png)
-
+ [![Figure 5](images/tn_ex05.png)](images/ex05.png)  
  __Figure 5: Three snazzy lines__
 
 In addition to the line type, color, and symbol, matplotlib grants control over
@@ -272,8 +259,7 @@ matplotlib tutorial [describes][mpl_lineprops] the other line properties.
 
  __[Listing 6](examples/ex06.py): Line Properties__
 
- [![Figure 6](images/tn_ex06.png)](images/ex06.png)
-
+ [![Figure 6](images/tn_ex06.png)](images/ex06.png)  
  __Figure 6: FIXME:title?__
 
 
@@ -302,7 +288,7 @@ labels of the X and Y axes:
 
  __[Listing 7](examples/ex07.py): Axes titles and labels__
 
- [![Figure 7](images/tn_ex07.png)](images/ex07.png)
+ [![Figure 7](images/tn_ex07.png)](images/ex07.png)  
 
  __Figure 7: FIXME:title?__
 
@@ -335,8 +321,7 @@ tutorial [documents][mpl_textprops] all of these properties.
 
  __[Listing 8](examples/ex08.py): Text properties__
 
- [![Figure 8](images/tn_ex08.png)](images/ex08.png)
-
+ [![Figure 8](images/tn_ex08.png)](images/ex08.png)  
  __Figure 8: FIXME:title?__
 
 These methods also accept, as their optional second argument, a Python
@@ -364,8 +349,7 @@ themes:
 
  __[Listing 9](examples/ex09.py): Text themes__
 
- [![Figure 9](images/tn_ex09.png)](images/ex09.png)
-
+ [![Figure 9](images/tn_ex09.png)](images/ex09.png)  
  __Figure 9: FIXME:title?__
 
 Text may also be placed at arbitrary X, Y coordinates within a plot, using the
@@ -394,8 +378,7 @@ Axes `text()` method.  This method accepts the same optional dictionary and keyw
 
  __[Listing 10](examples/ex10.py): Placing text__
 
- [![Figure 10](images/tn_ex10.png)](images/ex10.png)
-
+ [![Figure 10](images/tn_ex10.png)](images/ex10.png)  
  __Figure 10: FIXME:title?__
 
 
@@ -436,10 +419,8 @@ numbered from one.
 
  __[Listing 11](examples/ex11.py): Subplots__
 
- [![Figure 11](images/tn_ex11.png)](images/ex11.png)
-
+ [![Figure 11](images/tn_ex11.png)](images/ex11.png)  
  __Figure 11: FIXME:title?__
-
 
  [wx]: http://www.wxpython.org/
  [mpl]: http://matplotlib.sourceforge.net/

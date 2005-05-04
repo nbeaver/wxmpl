@@ -1,0 +1,83 @@
+/* CSS for "Getting Started with WxMpl and Matplotlib" (Media: Print)
+ *
+ * Copyright 2005 Illinois Institute of Technology
+ *
+ * See the file "LICENSE" for information on usage and redistribution
+ * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+ */
+
+
+body {
+    width: 40em;
+    margin-left: auto;
+    margin-right: auto;
+
+    color: #000;
+    background-color: #fff;
+    font-size: 12pt;
+}
+
+h1 {
+    text-align: center;
+}
+
+h1 + p {
+    line-height: 2em;
+    text-align: center;
+    font-size: large;
+}
+
+h1 + p:first-line {
+    font-size: larger;
+}
+
+h3 + p {
+    margin-top: -1em;
+}
+
+a {
+    color: #000;
+    text-decoration: none;
+}
+
+p {
+	line-height: 1.5em;
+}
+
+pre {
+    width: 75%;
+    margin-left: auto;
+    margin-right: auto;
+	padding: 5px 0 5px 10px;
+
+	border-width: 1px 0 1px 0;
+	border-style: dashed;
+
+    font-size: small;
+}
+
+img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+
+    border-width: 0;
+}
+
+p > strong {
+    display: block;
+    width: 100%;
+
+    margin-top: -1em;
+
+    text-align: center;
+    font-size: smaller;
+}
+
+br + strong {
+    margin-top: -1.5em;
+}
+
+p > code, a > code {
+    font-size: small;
+}

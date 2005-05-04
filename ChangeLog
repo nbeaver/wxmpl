@@ -1,20 +1,19 @@
 05-04-2005  Ken McIvor  <mcivor@iit.edu>
-	* release: 1.0
+	* release: 1.0rc1
 	* Support for stripcharting (updating a plot with new data as it arrives)
 	  has been added and an example is provided in `wxmpl-stripchart-demo.py'.
-	* A wxPython-based interface for point and area selection events has been
-	  created.
-	* Any of the user-interaction features (e.g. the crosshairs) may be
-	  disabled.
+	* The PlotApp class has been added to ease creating a single plot window.
+	* New wxPython-based interface for point and area selection events.
+	* The user-interaction features (e.g. zooming) may be selectively disabled.
 	* The PlotFrame now has File and Help menus and accelerator keys for saving
 	  the plot and and closing the window.
 	* A demonstration of shared X axes has been added to `wxmpl-demos.py'.
-	* `wxmpl-plotit.py', a port of the XDP `plotit' application to WxMpl, has
+	* A port of the XDP `plotit' application to WxMpl, `wxmpl-plotit.py', has
 	  beed added to the distribution.
 	* Documentation generated from the docstrings of `wxmpl.py' is now
 	  included in the `doc/' subdirectory of the distribution.
-	* A brief tutorial, "Getting Started with WxMpl", is now included in the
-	  `tutorial/' subdirectory of the distribution.
+	* A brief tutorial, "Getting Started with WxMpl and Matplotlib", is now
+	  included in the `tutorial/' subdirectory of the distribution.
 
 03-09-2005  Ken McIvor  <mcivor@iit.edu>
 	* release: 0.9 (intial public release)
