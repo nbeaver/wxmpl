@@ -19,20 +19,27 @@ body {
 
 h1 {
     text-align: center;
+    font-size: x-large;
 }
 
 h1 + p {
-    line-height: 2em;
+    margin-top: -0.5em;
+    line-height: 1em;
     text-align: center;
     font-size: large;
 }
 
 h1 + p:first-line {
-    font-size: larger;
+    line-height: 1.5em;
+    font-size: x-large;
 }
 
-h3 + p {
-    margin-top: -1em;
+h2 {
+    font-size: large;
+}
+
+h2 + p {
+    margin-top: -0.75em;
 }
 
 a {

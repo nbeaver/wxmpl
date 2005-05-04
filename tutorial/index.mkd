@@ -2,49 +2,67 @@ Getting Started with WxMpl and Matplotlib
 =========================================
 
 Ken McIvor  
-May 3, 2005
+<mailto:mcivor@iit.edu>
 
-
-### <a name="sec1"></a>Introduction  ###
 
 WxMpl is a library of [wxPython][wx] widgets which provide interactive plotting
 capabilities via the [matplotlib][mpl] 2D plotting library.  Although
 matplotlib excels at generating a variety of publication quality figures, its
-wxPython widgetry compares poorly with [BLT][pmw.blt]'s interative features.
+wxPython widgetry compares poorly with [BLT][pmw.blt]'s interactive features.
 WxMpl aims to remedy this situation by providing out-of-the-box support for
-basic user interations while supporting as many of matplotlib's figures and
+basic user interactions while supporting as many of matplotlib's figures and
 features as possible.
 
+## Introduction ##
 
-### Overview of WxMpl ###
+If you're new to Python or need to get back up to speed, I recommend you read
+the [*Python Tutorial*][python_tutorial], the [*Numerical Python
+Manual*][numpy_manual], and the [*matplotlib tutorial*][mpl_tutorial] before
+diving into this tutorial: in the interest of brevity, a working understanding
+of Python, the Numerical Python extensions, and matplotlib's pylab interface is
+assumed.   That being said, busy scientists should be able to use this guide as
+a cookbook.
 
-In order to support as many of matplotlib's features as possible, WxMpl enters
-the scene at the lowest level possible, defining an alterative matplotlib
-canvas.  As a result, figures must be constructed using matplotlib's
-object-oriented API, rather than its Matlab-compatible pylab interface.  This
-is a bit unfortunate, because the documentation of the OO API is sparse
-compared to that of the pylab interface.
+This tutorial is very much so a work in progress.  At this point, matplotlib is
+discussed more than WxMpl itself.  This is in part  because the documentation
+for matplotlib's object-oriented API is difficult to wade through, and in part
+because matplotlib has many more features.  I have only had time to scratch
+the surface of matplotlib's abilities, although the `wxmpl-demos.py` script
+demonstrates some of the more complicated plots from matplotlib's collection of
+examples.  Eventually, I'll cover the different ways to use WxMpl and how to
+use stripcharting to create plots that update as their data changes.  Please
+bear with me as I keep improving this tutorial, and feel free to email me with
+any questions or problems you have in the meantime.
+
+
+## Overview of WxMpl ##
 
 To understand WxMpl's place in the word, it is necessary to delve briefly into
-matplotlib's architechture.  Under the hood, matplotlib represents each
+matplotlib's architecture.  Under the hood, matplotlib represents each
 separate unit-of-drawing with an instance of the *Figure* class.  Each Figure
 has a *FigureCanvas* associated with it, providing matplotlib with something to
-draw the figure onto, be it a PNG image or a wxPython window.  The core of
-WxMpl is the *PlotPanel*, an enhanced version of the wxPython *FigureCanvas*.
-That's the pertainent the nuts and bolts covered, although the pathologically
-curious can learn more about matplotlib's interals in the "Matplotlib API"
+draw the figure onto, be it a PNG image or a wxPython window.  That's the
+pertainent the nuts and bolts covered, although the pathologically curious are
+encouraged to learn more about matplotlib's internals from the "Matplotlib API"
 chapter of [*The Matplotlib User's Guide*][mpl_ug].
 
+In order to support as many of matplotlib's features as possible, WxMpl enters
+the scene at the lowest level possible, defining an alterative FigureCanavas
+for matplotlib to use.  As a result, figures must be constructed using
+matplotlib's object-oriented API, rather than its Matlab-compatible pylab
+interface.  This is a bit unfortunate, because the documentation of the OO
+API is sparse compared to that of the pylab interface.
 
-### The "Hello World" of Plotting ###
+
+## The "Hello World" of Plotting ##
 
 Using WxMpl in an application involves creating a PlotPanel, getting its
 associated *Figure*, and then using matplotlib's OO API to draw things.  WxMpl
 also has a *PlotFrame* and a *PlotApp*.  As its name implies, the PlotFrame is
 a top-level wxPython window that already contains a PlotPanel.  The PlotApp is
-a *wxApp* class which creates a PlotFrame for you, making prototyping plots
-easy.  All three of these classes have the same plotting API, so they can be
-used interchangably.
+a complete wxPython application which creates a PlotFrame for you.  All three
+of these classes have the same plotting API, so they can be used
+interchangabely.
 
 Our first example will demonstrate the boilerplate code used in all of the
 other examples in this tutorial.
@@ -65,22 +83,21 @@ other examples in this tutorial.
 
 As you can see in the screen shot below, this is not a dreadfully exciting
 example: the plot window is completely empty.  This should come as no surprise,
-since this example makes no effort to plot anything.
+since this example made no effort to plot anything.
 
  [![Figure 1](images/tn_ex01.png)](images/ex01.png)  
- __Figure 1: An empty canvas__
+ __Figure 1: Anatomy of an example__
 
 Let's proceed onward to the "Hello World" of plotting examples: the venerable
 `sin()` plot.  This example will demonstrate how to retrieve the matplotlib
-Figure object, create an matplotlib *Axes* in it, and then use that Axes to
-plot `y=sin(pi*x)`.  This example also imports some functions from the
-`matplotlib.numerix` module.
+Figure object and plot `y = sin(pi*x)` in it.  This example also imports some
+functions from the `matplotlib.numerix` module.
 
-Numerix is a compatability layer for Python's two array libraries,
+Numerix is a compatibility layer for Python's two array libraries,
 [NumPy][numeric] and [NumArray][numeric], and is used in all of these examples
-to ensure cross-platform compatability.  If you're going to tie your
-application to matplotlib, you may want to consider taking advantage of Numerix
-for the same reason.
+to ensure cross-platform compatibility.  If you're going write applications
+that use matplotlib, you may want to consider taking advantage of Numerix for
+the same reason.
 
 Please note that the boilerplate code presented in Example 1 has been omitted
 here.  To run this example, paste it where the "This spot is where the plotting
@@ -107,24 +124,22 @@ happens" line is in Example 1, or take a gander at the full source code.
  __[Listing 2](examples/ex02.py): A simple plot__
 
 That's more like it, eh?  You might have noticed that we're not asking a whole
-lot of matplotlib's Figure class in this example -- just one call to
-[`gca()`][fig_gca].  This arrangement is typical, since Figures have another
-class to do most of the the heavy lifting for them: *Axes*.  It may come as
-no surprise, then, that `gca` is an acronym for "get current axes".
+lot of matplotlib's Figure class in this example, making just one call to its
+[`gca()`][fig_gca] method.  This arrangement is typical, since Figures have
+another class to do most of the the heavy lifting for them: *Axes*.  It may
+come as no surprise, then, that `gca` is an acronym for "get current axes".
 
  [![Figure 2](images/tn_ex02.png)](images/ex02.png)  
- __Figure 2: Holy sinusoids!__
+ __Figure 2: A simple plot__
 
 What's all this business about Axes?  Like Matlab, matplotlib supports
 subplots, e.g. having more than one plot in a figure.  To pull this off neatly,
 responsibility for drawing these plots is delegated to the Axes, making it
 arguably the most important class in matplotlib.  As long as we're not creating
-subplots, Figure's `gca()` method will be sufficient for our purposes, since it
-gives us the Axes and is smart enough to take care of creating it when one
-doesn't already exist.
+subplots, Figure's `gca()` method will be sufficient for our purposes.
 
 
-### Plotting Basics ###
+## The Basics of Plotting ##
 
 As you've probably guessed, `plot()` is the Axes method which defines line
 plots.  The following series of examples demonstrates how to plot multiple
@@ -154,7 +169,7 @@ Plotting multiple lines on an Axes is straightforward:
  __[Listing 3](examples/ex03.py): Plotting multiple lines__
 
  [![Figure 3](images/tn_ex03.png)](images/ex03.png)  
- __Figure 3: Three lines, one Axes__
+ __Figure 3: Plotting multiple lines__
 
 Although these calls to `plot()` could be rewritten as one call, `axes.plot(x,
 y1, x, y2, x, y3)`, I recommend that you keep them separate.  Doing so
@@ -192,7 +207,7 @@ legend properties.  For detailed explaination of the different ways to call
 [documentation][ax_legend]. 
 
  [![Figure 4](images/tn_ex04.png)](images/ex04.png)  
- __Figure 4: Now that's much clearer__
+ __Figure 4: Axes legends__
 
 Now that we have some way of identifying the different lines of a plot, we can
 demonstrate how to specify different line styles by combining them into format
@@ -229,7 +244,7 @@ matplotlib cycles through a permutation of line types, colors, and symbols.
  __[Listing 5](examples/ex05.py): Line styles__
 
  [![Figure 5](images/tn_ex05.png)](images/ex05.png)  
- __Figure 5: Three snazzy lines__
+ __Figure 5: Line styles__
 
 In addition to the line type, color, and symbol, matplotlib grants control over
 several other line properties.  These properties are provided as keyword
@@ -257,13 +272,13 @@ matplotlib tutorial [describes][mpl_lineprops] the other line properties.
     axes.plot(x, y2+0.5, 'xk', label='MS=5', markersize=5)
     axes.plot(x, y2+1.0, 'xb', label='MS=7', markersize=7)
 
- __[Listing 6](examples/ex06.py): Line Properties__
+ __[Listing 6](examples/ex06.py): Line properties__
 
  [![Figure 6](images/tn_ex06.png)](images/ex06.png)  
- __Figure 6: FIXME:title?__
+ __Figure 6: Line properties__
 
 
-### Labels and Text ###
+## Labels and Text ##
 
 The Axes class has methods that allow you to specify the plot title and the
 labels of the X and Y axes:
@@ -286,11 +301,11 @@ labels of the X and Y axes:
     axes.set_xlabel('x axis')
     axes.set_ylabel('y = sin(pi*x)')
 
- __[Listing 7](examples/ex07.py): Axes titles and labels__
+ __[Listing 7](examples/ex07.py): Titles and labels__
 
  [![Figure 7](images/tn_ex07.png)](images/ex07.png)  
 
- __Figure 7: FIXME:title?__
+ __Figure 7: Titles and labels__
 
 These methods accept several keyword arguments that that can be used to specify
 certain text properties, such as font, weight, and size.  The matplotlib
@@ -322,10 +337,10 @@ tutorial [documents][mpl_textprops] all of these properties.
  __[Listing 8](examples/ex08.py): Text properties__
 
  [![Figure 8](images/tn_ex08.png)](images/ex08.png)  
- __Figure 8: FIXME:title?__
+ __Figure 8: Text properties__
 
 These methods also accept, as their optional second argument, a Python
-dictionary of _property_/_setting_ pairs.  Since you can also specify
+dictionary of _property_/_value_ pairs.  Since you can also specify
 additional text properties as keyword arguments, you can effectively create
 themes:
 
@@ -350,7 +365,7 @@ themes:
  __[Listing 9](examples/ex09.py): Text themes__
 
  [![Figure 9](images/tn_ex09.png)](images/ex09.png)  
- __Figure 9: FIXME:title?__
+ __Figure 9: Text themes__
 
 Text may also be placed at arbitrary X, Y coordinates within a plot, using the
 Axes `text()` method.  This method accepts the same optional dictionary and keyword arguments as the title and label methods discussed above.
@@ -376,13 +391,13 @@ Axes `text()` method.  This method accepts the same optional dictionary and keyw
     axes.text(1.0, 0, '1.0', theme, color='k')
     axes.text(1.5, 0, '1.5', theme, color='g')
 
- __[Listing 10](examples/ex10.py): Placing text__
+ __[Listing 10](examples/ex10.py): Text placement__
 
  [![Figure 10](images/tn_ex10.png)](images/ex10.png)  
- __Figure 10: FIXME:title?__
+ __Figure 10: Text placement__
 
 
-### Subplots ###
+## Subplots ##
 
 As mentioned earlier, matplotlib has the ability to display subplots, drawing
 multiple Axes on a single figure.  Instead of using the Figure's `gca()` method
@@ -420,11 +435,14 @@ numbered from one.
  __[Listing 11](examples/ex11.py): Subplots__
 
  [![Figure 11](images/tn_ex11.png)](images/ex11.png)  
- __Figure 11: FIXME:title?__
+ __Figure 11: Subplots__
 
  [wx]: http://www.wxpython.org/
  [mpl]: http://matplotlib.sourceforge.net/
  [pmw.blt]: http://heim.ifi.uio.no/~hpl/Pmw.Blt/doc/
+ [python_tutorial]: http://python.org/doc/2.3.5/tut/tut.html
+ [numpy_manual]: http://numeric.scipy.org/numpydoc/numdoc.htm
+ [mpl_tutorial]: http://matplotlib.sourceforge.net/tutorial.html
  [mpl_ug]: http://matplotlib.sourceforge.net/users_guide_0.80.pdf
  [numeric]: http://numeric.scipy.org/
  [fig_gca]: http://matplotlib.sourceforge.net/matplotlib.figure.html#Figure-gca
