@@ -402,21 +402,43 @@ Axes `text()` method.  This method accepts the same optional dictionary and keyw
 ### Subplots ###
 
 As mentioned earlier, matplotlib has the ability to display subplots, drawing
-multiple Axes on a single figure.
+multiple Axes on a single figure.  Instead of using the Figure's `gca()` method
+to get the Axes to plot with, the `add_subplot()` method is used to add create
+each Axes.  This method takes three arguments: the desired number of subplots,
+the row of this Axes, and the column of this Axes.  The rows and columns are
+numbered from one.
 
-<!-- subplot -->
-<!-- subplot sharex -->
+    ### Create the data to plot ###
+    
+    from matplotlib.numerix import arange, pi, sin, cos
+    x = arange(0.0, 2, 0.01)
+    y1 = sin(pi*x)
+    y2 = cos(pi*x)
+    
+    ### Plot it ###
+    
+    fig = app.get_figure()
+    
+    # Create the subplot Axes
+    axes1 = fig.add_subplot(2, 1, 1)
+    axes2 = fig.add_subplot(2, 1, 2)
+    
+    axes1.plot(x, y1)
+    axes2.plot(x, y2)
+    
+    # Subplots must be labeled carefully, since labels
+    # can be accidentally hidden by other subplots
+    axes1.set_title('Example 11: Subplots')
+    axes1.set_ylabel('y = sin(pi*x)')
+    
+    axes2.set_xlabel('x axis')
+    axes2.set_ylabel('y = cos(pi*x)')
 
+ __[Listing 11](examples/ex11.py): Subplots__
 
-### Plotting Images ###
+ [![Figure 11](images/tn_ex11.png)](images/ex11.png)
 
-
-### Matplotlib Potpourri ###
-
-
-### WxMpl's Plotting API ###
-
-
+ __Figure 11: FIXME:title?__
 
 
  [wx]: http://www.wxpython.org/
