@@ -1,22 +1,35 @@
-wxmpl - Plotting with matplotlib from wxPython
-----------------------------------------------
+WxMpl - Painless matplolib embedding for wxPython
+-------------------------------------------------
 
-The wxmpl module provides a high-level interface for embedding matplotlib plotting in wxPython programs.
+The `wxmpl' module provides an matplotlib `FigureCanvas' with user-interaction
+features like point-under-cursor and zooming in on a selected area.
+Support for creating stripcharts, plots that update as their data changes, is
+also included.
 
-Detailed documentation is forthcoming.  For now, refer to the `wxmpl-demos.py'.
+Documentation of the module itself is available in the`doc/' subdirectory.  An
+introduction to using matplotlib with WxMpl is available in the `tutorial/'
+subdirectory.  Scripts demonstrating some of matplotlib's examples with WxMpl
+and plotting stripcharts data are also included.
 
 
 REQUIREMENTS
 ------------
 
-* Python 2.2 or above.
+* Python 2.3.  Version 2.4 has not been tested.
     http://www.python.org
 
-* wxPython 2.4.2.4 or above.
+* wxPython 2.4.2.4 or a later 2.5 release.  Version 2.6 has not been tested.
     http://www.wxpython.org
 
 * matplotlib 0.72 or above.
     http://matplotlib.sourceforge.net
+
+
+PLATFORMS
+---------
+
+WxMpl has been tested under Debian Stable, Debian Testing, Debian Unstable, and
+Mac OS 10.3.
 
 
 INSTALLATION
@@ -39,13 +52,15 @@ For information about other Distutils commands, execute the following command:
 AVAILABILITY
 ------------
 
-A website for wxmpl has not yet been created, so your best bet is to bug Ken.
+There is no website for WxMpl yet, so your best bet is to bug Ken.
+
+WxMpl's subversion repository is http://svn.csrri.iit.edu/mr-software/wxmpl/
 
 
 AUTHOR
 ------
 
-wxmpl was written by Ken McIvor <mcivor@iit.edu>
+WxMpl was written by Ken McIvor <mcivor@iit.edu>
 
 
 COPYRIGHT & LICENSE

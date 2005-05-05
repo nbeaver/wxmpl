@@ -11,10 +11,10 @@
 Embedding matplotlib in wxPython applications is straightforward, but the
 default plotting widget lacks the capabilities necessary for interactive use.
 WxMpl (wxPython+matplotlib) is a library of components that provide these
-missing features.
+missing features in the form of a better matplolib FigureCanvas.
 """
 
-__version__ = '0.9'
+__version__ = '1.0'
 
 
 import wx

@@ -15,11 +15,11 @@ from distutils.core import setup
 
 setup(
     name = 'wxmpl',
-    version = '0.9',
+    version = '1.0',
     maintainer = 'Ken McIvor',
     maintainer_email = 'mcivor@iit.edu',
     license = 'MIT X11/XFree86 style',
-    description = 'A library for plotting with matplotlib from wxPython',
+    description = 'A library for painlessly embedding matplotlib in wxPython',
     package_dir = {'': 'python'},
     py_modules = ['wxmpl']
 )

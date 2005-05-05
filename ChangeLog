@@ -1,5 +1,5 @@
 05-04-2005  Ken McIvor  <mcivor@iit.edu>
-	* release: 1.0rc1
+	* release: 1.0
 	* Support for stripcharting (updating a plot with new data as it arrives)
 	  has been added and an example is provided in `wxmpl-stripchart-demo.py'.
 	* The PlotApp class has been added to ease creating a single plot window.
