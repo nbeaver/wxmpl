@@ -31,8 +31,8 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-__all__ = ['PlotPanel', 'PlotFrame', 'StripCharter', 'Channel', 'EVT_POINT',
-    'EVT_SELECTION']
+__all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
+    'EVT_POINT', 'EVT_SELECTION']
 
 
 #
