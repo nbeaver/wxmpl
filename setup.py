@@ -15,7 +15,7 @@ from distutils.core import setup
 
 setup(
     name = 'wxmpl',
-    version = '1.0',
+    version = '1.1',
     maintainer = 'Ken McIvor',
     maintainer_email = 'mcivor@iit.edu',
     license = 'MIT X11/XFree86 style',

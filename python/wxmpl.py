@@ -14,7 +14,7 @@ WxMpl (wxPython+matplotlib) is a library of components that provide these
 missing features in the form of a better matplolib FigureCanvas.
 """
 
-__version__ = '1.0'
+__version__ = '1.1'
 
 
 import wx
