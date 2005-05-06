@@ -23,6 +23,7 @@ import weakref
 
 import matplotlib
 matplotlib.use('WXAgg')
+import matplotlib.numerix as Numerix
 from matplotlib.axes import PolarAxes, _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
@@ -1098,7 +1099,7 @@ class PlotApp(wx.App):
     ABOUT_MESSAGE = None
 
     def __init__(self, title="WxMpl", size=(6.0, 3.7), dpi=96, cursor=True,
-     location=True, crosshairs=True, selection=True, zoom=True):
+     location=True, crosshairs=True, selection=True, zoom=True, **kwds):
         """
         Creates a new PlotApp, which creates a PlotFrame top-level window.
 
@@ -1107,6 +1108,9 @@ class PlotApp(wx.App):
 
         All of other the named keyword arguments to this constructor have the
         same meaning as those arguments to the constructor of C{PlotPanel}.
+
+        Any additional keyword arguments are passed to the constructor of
+        C{wx.App}.
         """
         self.title = title
         self.size = size
@@ -1116,7 +1120,7 @@ class PlotApp(wx.App):
         self.crosshairs = crosshairs
         self.selection = selection
         self.zoom = zoom
-        wx.App.__init__(self)
+        wx.App.__init__(self, **kwds)
 
     def OnInit(self):
         self.panel = panel = PlotFrame(None, -1, self.title, self.size,
@@ -1191,7 +1195,7 @@ class VectorBuffer:
     accomodate new entries.
     """
     def __init__(self):
-        self.data = Numeric.zeros((16,), Numeric.Float)
+        self.data = Numerix.zeros((16,), Numerix.Float)
         self.nextRow = 0
 
     def clear(self):
@@ -1205,7 +1209,7 @@ class VectorBuffer:
         """
         Zero and reset this buffer, releasing the underlying array.
         """
-        self.data = Numeric.zeros((16,), Numeric.Float)
+        self.data = Numerix.zeros((16,), Numerix.Float)
         self.nextRow = 0
 
     def append(self, point):
@@ -1215,14 +1219,13 @@ class VectorBuffer:
         nextRow = self.nextRow
         data = self.data
 
-        resize = 1
+        resize = False
         if nextRow == data.shape[0]:
-            nR = int(Numeric.ceil(nR*1.5))
-        else:
-            resize = 0
+            nR = int(Numerix.ceil(self.data.shape[0]*1.5))
+            resize = True
 
         if resize:
-            self.data = Numeric.zeros((nR,), Numeric.Float)
+            self.data = Numerix.zeros((nR,), Numerix.Float)
             self.data[0:data.shape[0]] = data
 
         self.data[nextRow] = point
@@ -1244,7 +1247,7 @@ class MatrixBuffer:
     accomodate new rows of entries.
     """
     def __init__(self):
-        self.data = Numeric.zeros((16, 1), Numeric.Float)
+        self.data = Numerix.zeros((16, 1), Numerix.Float)
         self.nextRow = 0
 
     def clear(self):
@@ -1258,14 +1261,14 @@ class MatrixBuffer:
         """
         Zero and reset this buffer, releasing the underlying array.
         """
-        self.data = Numeric.zeros((16, 1), Numeric.Float)
+        self.data = Numerix.zeros((16, 1), Numerix.Float)
         self.nextRow = 0
 
     def append(self, row):
         """
         Append a new row of entries to the end of this buffer's matrix.
         """
-        row = Numeric.asarray(row, Numeric.Float)
+        row = Numerix.asarray(row, Numerix.Float)
         nextRow = self.nextRow
         data = self.data
         nPts = row.shape[0]
@@ -1273,20 +1276,20 @@ class MatrixBuffer:
         if nPts == 0:
             return
 
-        resize = 1
+        resize = True
         if nextRow == data.shape[0]:
             nC = data.shape[1]
-            nR = int(Numeric.ceil(nR*1.5))
+            nR = int(Numerix.ceil(self.data.shape[0]*1.5))
             if nC < nPts:
                 nC = nPts
         elif data.shape[1] < nPts:
             nR = data.shape[0]
             nC = nPts
         else:
-            resize = 0
+            resize = False
 
         if resize:
-            self.data = Numeric.zeros((nR, nC), Numeric.Float)
+            self.data = Numerix.zeros((nR, nC), Numerix.Float)
             rowEnd, colEnd = data.shape
             self.data[0:rowEnd, 0:colEnd] = data
 
@@ -1387,10 +1390,10 @@ class StripCharter:
         figureCanvas = axes.figure.canvas
         zoomed = figureCanvas.zoomed(axes)
 
-        redraw = 0
+        redraw = False
         if self.lines is None:
             self._create_plot()
-            redraw = 1
+            redraw = True
         else:
             for channel in self.channels:
                 redraw = self._update_channel(channel, zoomed) or redraw
@@ -1428,7 +1431,7 @@ class StripCharter:
         x = channel.getX()
         y = channel.getY()
         if x is None or y is None:
-            x = y = Numeric.zeros((0,), Numeric.Float)
+            x = y = Numerix.zeros((0,), Numerix.Float)
         lineStyle = channel.getLineStyle()
 
         if lineStyle:
@@ -1466,8 +1469,8 @@ class StripCharter:
         if line.get_transform() != axes.transData:
             xys = axes._get_verts_in_data_coords(
                 line.get_transform(), zip(x, y))
-            x = Numeric.array([a for (a, b) in xys])
-            y = Numeric.array([b for (a, b) in xys])
+            x = Numerix.array([a for (a, b) in xys])
+            y = Numerix.array([b for (a, b) in xys])
         axes.update_datalim_numerix(x, y)
 
         if zoomed:

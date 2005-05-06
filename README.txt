@@ -6,10 +6,11 @@ features like point-under-cursor and zooming in on a selected area.
 Support for creating stripcharts, plots that update as their data changes, is
 also included.
 
-Documentation of the module itself is available in the`doc/' subdirectory.  An
-introduction to using matplotlib with WxMpl is available in the `tutorial/'
-subdirectory.  Scripts demonstrating some of matplotlib's examples with WxMpl
-and plotting stripcharts data are also included.
+Documentation of the module itself is available in the`reference/'
+subdirectory.  An introduction to using matplotlib with WxMpl is available in
+the `tutorial/' subdirectory.  Scripts demonstrating some of matplotlib's
+examples with WxMpl and plotting stripcharts data are in the `demos/'
+subdirectory.
 
 
 REQUIREMENTS
