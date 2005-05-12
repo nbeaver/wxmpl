@@ -1414,8 +1414,9 @@ class StripCharter:
         for channel in self.channels:
             self._plot_channel(channel, styleGen)
 
-        self.axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
-            handletextsep=0.01, prop=FontProperties(size='xx-small'))
+        if self.channels:
+            self.axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
+                handletextsep=0.01, prop=FontProperties(size='xx-small'))
 
 #        # Draw the legend on the figure instead...
 #        handles = [self.lines[x] for x in self.channels]

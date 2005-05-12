@@ -1,3 +1,7 @@
+05-12-2005  Ken McIvor  <mcivor@iit.edu>
+	* Fixed a bug in StripCharter where axes.legend() was being called when
+	  there were no lines plotted.
+
 05-05-2005  Ken McIvor  <mcivor@iit.edu>
 	* release: 1.1
 	* Added extra keyword arguments to PlotApp
