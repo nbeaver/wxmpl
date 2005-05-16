@@ -1445,6 +1445,8 @@ class StripCharter:
             line.set_style(channel.getStyle())
         if channel.getMarker() is not None:
             line.set_marker(channel.getMarker())
+            line.set_markeredgecolor(line.get_color())
+            line.set_markerfacecolor(line.get_color())
 
         line.set_label(channel.getLabel())
         self.axes.add_line(line)
