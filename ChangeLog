@@ -1,3 +1,9 @@
+05-15-2005  Ken McIvor  <mcivor@iit.edu>
+	* Changed the way axes.legend() is invoked so that only the Channel lines
+	  will be included in the resulting legend.
+	* Added getColor(), getStyle(), and getMarker() to the Channel class to
+	  provide finer-grained control over the line styles.
+
 05-12-2005  Ken McIvor  <mcivor@iit.edu>
 	* Fixed a bug in StripCharter where axes.legend() was being called when
 	  there were no lines plotted.

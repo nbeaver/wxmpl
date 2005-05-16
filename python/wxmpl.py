@@ -1415,8 +1415,11 @@ class StripCharter:
             self._plot_channel(channel, styleGen)
 
         if self.channels:
-            self.axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
-                handletextsep=0.01, prop=FontProperties(size='xx-small'))
+            lines  = [self.lines[x] for x in self.channels]
+            labels = [x.get_label() for x in lines]
+            self.axes.legend(lines, labels, pad=0.1, axespad=0.0, numpoints=2,
+                handlelen=0.02, handletextsep=0.01,
+                prop=FontProperties(size='xx-small'))
 
 #        # Draw the legend on the figure instead...
 #        handles = [self.lines[x] for x in self.channels]
@@ -1433,12 +1436,15 @@ class StripCharter:
         y = channel.getY()
         if x is None or y is None:
             x = y = Numerix.zeros((0,), Numerix.Float)
-        lineStyle = channel.getLineStyle()
 
-        if lineStyle:
-            line = styleGen(x, y, channel.lineStyle).next()
-        else:
-            line = styleGen(x, y).next()
+        line = styleGen(x, y).next()
+
+        if channel.getColor() is not None:
+            line.set_color(channel.getColor())
+        if channel.getStyle() is not None:
+            line.set_style(channel.getStyle())
+        if channel.getMarker() is not None:
+            line.set_marker(channel.getMarker())
 
         line.set_label(channel.getLabel())
         self.axes.add_line(line)
@@ -1491,14 +1497,16 @@ class Channel:
     override the template methods C{getX()} and C{getY()} to provide plot data
     and call C{setChanged(True)} when that data has changed.
     """
-    def __init__(self, name, lineStyle=None):
+    def __init__(self, name, color=None, style=None, marker=None):
         """
-        Creates a new C{Channel} with the matplotlib label C{name}.  If the
-        keyword argument C{lineStyle} is provided, it will be used as the style
-        string when the line is plotted.
+        Creates a new C{Channel} with the matplotlib label C{name}.  The
+        keyword arguments specify the strings for the line color, style, and
+        marker to use when the line is plotted.
         """
         self.name = name
-        self.lineStyle = lineStyle
+        self.color = color
+        self.style = style
+        self.marker = marker
         self.changed = False
 
     def getLabel(self):
@@ -1507,12 +1515,26 @@ class Channel:
         """
         return self.name
 
-    def getLineStyle(self):
+    def getColor(self):
         """
-        Returns the style string to use when the line is plotted, or C{None} to
-        use an automatically generated style.
+        Returns the line color string to use when the line is plotted, or
+        C{None} to use an automatically generated color.
         """
-        return self.lineStyle
+        return self.color
+
+    def getStyle(self):
+        """
+        Returns the line style string to use when the line is plotted, or
+        C{None} to use the default line style.
+        """
+        return self.style
+
+    def getMarker(self):
+        """
+        Returns the line marker string to use when the line is plotted, or
+        C{None} to use the default line marker.
+        """
+        return self.marker
 
     def hasChanged(self):
         """
