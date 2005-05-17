@@ -286,6 +286,7 @@ class PlotPanelDirector(DestructableViewMixin):
         if x0 == x:
             if y0 == y and axes is not None:
                 view.notify_point(axes, x, y)
+                view.crosshairs.set(x, y)
             return
         elif y0 == y:
             return
@@ -657,6 +658,159 @@ class CursorChanger(DestructableViewMixin):
 
 
 #
+# Printing Framework
+#
+
+class FigurePrinter:
+    def __init__(self):
+        self.pData = wx.PrintData()
+
+    def pageSetup(self, frame):
+        psdData = wx.PageSetupDialogData()
+        psdData.SetPrintData(self.pData)
+        dlg = wx.PageSetupDialog(frame, psdData)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.pData = dlg.GetPageSetupData().GetPrintData()
+        dlg.Destroy()
+
+    def previewFigure(self, frame, figure, title=None):
+        fpo = FigurePrintout(figure, title)
+        fpo4p = FigurePrintout(figure, title)
+        preview = wx.PrintPreview(fpo, fpo4p, self.pData)
+        frame = wx.PreviewFrame(preview, frame, 'Print Preview')
+        if self.pData.GetOrientation() == wx.PORTRAIT:
+            frame.SetSize(wx.Size(450, 625))
+        else:
+            frame.SetSize(wx.Size(600, 500))
+        frame.Initialize()
+        frame.Show(True)
+
+    def printFigure(self, frame, figure, title=None):
+        pdData = wx.PrintDialogData()
+        pdData.SetPrintData(self.pData)
+        printer = wx.Printer(pdData)
+        fpo = FigurePrintout(figure, title)
+        if printer.Print(frame, fpo, True):
+            self.pData = pdData.GetPrintData()
+
+
+class FigurePrintout(wx.Printout):
+    def __init__(self, figure, title=None):
+        self.figure = figure
+        figTitle = figure.gca().title.get_text()
+        if not figTitle:
+            figTitle = title or 'Matplotlib Figure'
+        wx.Printout.__init__(self, figTitle)
+
+    def GetPageInfo(self):
+        return (0, 1, 1, 1)
+
+    def HasPage(self, pageNumber):
+        return pageNumber == 1
+
+    def OnPrintPage(self, pageNumber):
+        print 'DC.Size:', self.GetDC().GetSize()
+        print 'PageSizeMM:', self.GetPageSizeMM()
+        print 'PageSizePixels:', self.GetPageSizePixels()
+        print 'PPIPrinter:', self.GetPPIPrinter()
+        print 'PPIScreen:', self.GetPPIScreen()
+        print 'IsPreview:', self.IsPreview()
+        print
+
+        wPPI_S, hPPI_S = [float(x) for x in self.GetPPIScreen()]
+        wPPI_P, hPPI_P = [float(x) for x in self.GetPPIPrinter()]
+        wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
+        wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
+
+        if self.IsPreview():
+            wPPI, hPPI = wPPI_S, hPPI_S
+        else:
+            wPPI, hPPI = wPPI_P, hPPI_P
+
+        wPg = wPg_Px / wPPI_P
+        hPg = hPg_Px / hPPI_P
+        wDev = wDev_Px / wPPI_S
+        hDev = hDev_Px / hPPI_S
+
+        print 'wPg =', wPg
+        print 'hPg =', hPg
+
+        wM = 1.0 # minimum side margins in Inches
+        hM = 1.0
+
+        wArea = wPg - 2*wM
+        hArea = hPg - 2*hM
+
+        print 'wArea =', wArea
+        print 'hArea =', hArea
+
+        imgSize = 100 # 1..100
+        imgPercent = max(1, min(100, imgSize))/100.0
+
+        wOFig, hOFig = self.figure.get_size_inches()
+        wFig = imgPercent * wArea
+        hFig = wFig * hOFig/wOFig
+
+        print 'wFig =', wFig
+        print 'hFig =', hFig
+
+        wS = (wDev_Px/wPPI)/wPg
+        hS = (hDev_Px/hPPI)/hPg
+
+        print 'wS =', wS
+        print 'hS =', hS
+        print 'Scaled wArea =', wS*wArea
+        print 'Scaled wM =', wS*wM
+        print 'Scaled hM =', hS*hM
+        print 'Scaled wFig =', wS*wFig
+        print 'Scaled hFig =', hS*hFig
+
+        wSx = wS * wPPI
+        hSx = hS * hPPI
+        wFig_Sx = wSx * wFig
+        hFig_Sx = wSx * hFig
+        wM_Sx = wSx * wM
+        hM_Sx = hSx * hM
+
+        self.GetDC().SetBrush(wx.BLACK_BRUSH)
+        self.GetDC().DrawRectangle(wM_Sx, hM_Sx, wFig_Sx, hFig_Sx)
+
+#
+#        if self.IsPreview():
+#            pxScale = wPPI_S/wPPI_P, hPPI_S/hPPI_P
+#            wPPI, hPPI = wPPI_S, hPPI_S
+#        else:
+#            sizeScale = 1.0
+#            pxScale = 1.0, 1.0
+#            wPPI, hPPI = wPPI_P, hPPI_P
+#
+#        wM_In = 1.0 # minimum side margins in Inches
+#        hM_In = 1.0
+#        wM = wM_In * wPPI_P
+#        hM = hM_In * hPPI_P
+#
+#        wArea = wPg - 2*wM
+#        hArea = hPg - 2*hM
+#
+#        imgSize = 100 # 1..100
+#        imgPercent = imgSize/100.0
+#
+#        wFig_In, hFig_In = self.figure.get_size_inches()
+#        wFig = imgPercent * wArea
+#        hFig = wFig * hFig_In/wFig_In
+#
+#        wM *= pxScale[0]
+#        hM *= pxScale[1]
+#        wFig *= pxScale[0]
+#        hFig *= pxScale[1]
+#
+#        self.GetDC().SetBrush(wx.BLACK_BRUSH)
+#        self.GetDC().DrawRectangle(wM, hM, wFig, hFig)
+
+        print
+        return True
+
+#
 # wxPython event interface for the PlotPanel and PlotFrame
 #
 
@@ -953,6 +1107,7 @@ class PlotFrame(wx.Frame):
         C{wx.Frame}.
         """
         wx.Frame.__init__(self, parent, id, title, **kwds)
+        self.printer = FigurePrinter()
         self.panel = PlotPanel(self, -1, size, dpi, cursor, location,
             crosshairs, selection, zoom)
 
@@ -963,6 +1118,22 @@ class PlotFrame(wx.Frame):
         menu.Append(id, '&Save As...\tCtrl+S',
             'Save a copy of the current plot')
         wx.EVT_MENU(self, id, self.OnMenuFileSave)
+
+        menu.AppendSeparator()
+
+        id = wx.NewId()
+        menu.Append(id, 'Page Set&up...',
+            'Set the size and margins of the printed figure')
+        wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
+
+        id = wx.NewId()
+        menu.Append(id, 'Print Pre&view...',
+            'Preview the print version of the current plot')
+        wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
+
+        id = wx.NewId()
+        menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
+        wx.EVT_MENU(self, id, self.OnMenuFilePrint)
 
         menu.AppendSeparator()
 
@@ -1019,6 +1190,25 @@ class PlotFrame(wx.Frame):
 
             wx.MessageBox('Could not save file: %s' % err, 'Error - plotit',
                 parent=self, style=wx.OK|wx.ICON_ERROR)
+
+    def OnMenuFilePageSetup(self, event):
+        """
+        Handles File->Page Setup menu events
+        """
+        self.printer.pageSetup(self)
+
+    def OnMenuFilePrintPreview(self, event):
+        """
+        Handles File->Print Preview menu events
+        """
+#        self.panel.Printer_Preview(); return
+        self.printer.previewFigure(self, self.get_figure())
+
+    def OnMenuFilePrint(self, event):
+        """
+        Handles File->Print menu events
+        """
+        self.printer.printFigure(self, self.get_figure())
 
     def OnMenuFileClose(self, event):
         """
@@ -1123,7 +1313,7 @@ class PlotApp(wx.App):
         wx.App.__init__(self, **kwds)
 
     def OnInit(self):
-        self.panel = panel = PlotFrame(None, -1, self.title, self.size,
+        self.frame = panel = PlotFrame(None, -1, self.title, self.size,
             self.dpi, self.cursor, self.location, self.crosshairs,
             self.selection, self.zoom)
 
@@ -1140,7 +1330,7 @@ class PlotApp(wx.App):
         """
         Returns the figure associated with this canvas.
         """
-        return self.panel.get_figure()
+        return self.frame.get_figure()
 
     def set_cursor(self, state):
         """
@@ -1148,41 +1338,41 @@ class PlotApp(wx.App):
         changes from the normal arrow to a square cross when the mouse enters a
         matplotlib axes on this canvas.
         """
-        self.panel.set_cursor(state)
+        self.frame.set_cursor(state)
 
     def set_location(self, state):
         """
         Enable or disable the display of the matplotlib axes coordinates of the
         mouse in the lower left corner of the canvas.
         """
-        self.panel.set_location(state)
+        self.frame.set_location(state)
 
     def set_crosshairs(self, state):
         """
         Enable or disable drawing crosshairs through the mouse cursor when it
         is inside a matplotlib axes.
         """
-        self.panel.set_crosshairs(state)
+        self.frame.set_crosshairs(state)
 
     def set_selection(self, state):
         """
         Enable or disable area selections, where user selects a rectangular
         area of the canvas by left-clicking and dragging the mouse.
         """
-        self.panel.set_selection(state)
+        self.frame.set_selection(state)
 
     def set_zoom(self, state):
         """
         Enable or disable zooming in when the user makes an area selection and
         zooming out again when the user right-clicks.
         """
-        self.panel.set_zoom(state)
+        self.frame.set_zoom(state)
 
     def draw(self):
         """
         Draw the associated C{Figure} onto the screen.
         """
-        self.panel.draw()
+        self.frame.draw()
 
 
 #

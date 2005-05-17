@@ -1,3 +1,6 @@
+05-16-2005  Ken McIvor  <mcivor@iit.edu>
+	* Crosshairs now redraw correctly after a point selection.
+
 05-15-2005  Ken McIvor  <mcivor@iit.edu>
 	* Changed the way axes.legend() is invoked so that only the Channel lines
 	  will be included in the resulting legend.
