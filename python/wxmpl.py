@@ -662,11 +662,22 @@ class CursorChanger(DestructableViewMixin):
 # Printing Framework
 #
 
+# TODO: Map print quality settings onto PostScript resolutions automatically.
+#       For now, just set it to something reasonable to work around the fact
+#       that it defaults to `72' rather than `720' under wxPython 2.4.2.4
+wx.PostScriptDC_SetResolution(300)
+
 class FigurePrinter:
     def __init__(self):
         self.pData = wx.PrintData()
 
     def pageSetup(self, frame):
+# TODO: write a nice PageSetupDialog() which lets users choose the
+#        * Paper size
+#        * Orientation
+#        * Aspect Ratio (rectangular or square)
+#        * % of the maximum image size (Slider from 25..100)
+#       and updates the height and width in real time
         psdData = wx.PageSetupDialogData()
         psdData.SetPrintData(self.pData)
         dlg = wx.PageSetupDialog(frame, psdData)
@@ -685,6 +696,7 @@ class FigurePrinter:
             frame.SetSize(wx.Size(600, 500))
         frame.Initialize()
         frame.Show(True)
+
 
     def printFigure(self, frame, figure, title=None):
         pdData = wx.PrintDialogData()
@@ -710,6 +722,16 @@ class FigurePrintout(wx.Printout):
         return pageNumber == 1
 
     def OnPrintPage(self, pageNumber):
+        # These two bits need to become arguments to FigurePrintout.__init__()
+
+        # % of printable area to use
+        imgSize = 100
+        imgPercent = max(1, min(100, imgSize)) / 100.0
+
+        # ratio of the figure's width to its height
+        aspectRatio = 1.61803399 # TODO: allow Square and Rectangular images
+
+        print 'DC:', self.GetDC()
         print 'DC.Size:', self.GetDC().GetSize()
         print 'PageSizeMM:', self.GetPageSizeMM()
         print 'PageSizePixels:', self.GetPageSizePixels()
@@ -718,29 +740,36 @@ class FigurePrintout(wx.Printout):
         print 'IsPreview:', self.IsPreview()
         print
 
-        # PPI: Pixels Per Inch of the DC
+        # Device context to draw the page
+        dc = self.GetDC()
+
         # PPI_P: Pixels Per Inch of the Printer
         wPPI_P, hPPI_P = [float(x) for x in self.GetPPIPrinter()]
+        PPI_P = (wPPI_P + hPPI_P)/2.0
+
+        # PPI: Pixels Per Inch of the DC
         if self.IsPreview():
             wPPI, hPPI = [float(x) for x in self.GetPPIScreen()]
         else:
             wPPI, hPPI = wPPI_P, hPPI_P
-
         PPI = (wPPI + hPPI)/2.0
-        PPI_P = (wPPI_P + hPPI_P)/2.0
+
+        # Pg_Px: Size of the page (pixels)
+        wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
+
+        # Dev_Px: Size of the DC (pixels)
+        wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
 
         # Pg: Size of the page (inches)
-        # Pg_Px: Size of the page (pixels)
-        # Dev_Px: Size of the DC (pixels)
-        wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
-        wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
         wPg = wPg_Px / PPI_P
         hPg = hPg_Px / PPI_P
 
         print 'wPg =', wPg
         print 'hPg =', hPg
 
-        wM = 1.0 # minimum margins (inches)
+        # minimum margins (inches)
+        # XXX: should these be selectable?
+        wM = 1.0
         hM = 1.0
 
         # Area: printable area within the margins (inches)
@@ -750,20 +779,13 @@ class FigurePrintout(wx.Printout):
         print 'wArea =', wArea
         print 'hArea =', hArea
 
-        imgSize = 100 # % of printable area to use
-        imgPercent = max(1, min(100, imgSize)) / 100.0
-
-        # ratio of the figure's width to its height
-        aspectRatio = 1.61803399
-
         # Fig: printing size of the figure
+        # hFig is at a maximum when wFig == wArea
         max_hFig = wArea / aspectRatio
-        print 'max_hFig =', max_hFig
-        print 'imgPercent*hArea =', imgPercent  * hArea
         hFig = min(imgPercent * hArea, max_hFig)
         wFig = aspectRatio * hFig
-
-        # TODO: bound wFig by the maximum hFig==hArea
+        print 'max_hFig =', max_hFig
+        print 'imgPercent*hArea =', imgPercent  * hArea
 
         print 'wFig =', wFig
         print 'hFig =', hFig
@@ -797,22 +819,68 @@ class FigurePrintout(wx.Printout):
         print 'Device wFig =', wFig_Dx
         print 'Device hFig =', hFig_Dx
 
-        if PPI < 96:
-            dpi = 96
-            wFig_S *= PPI/96.0
-            hFig_S *= PPI/96.0
-        else:
-            dpi = PPI
+#        if isinstance(dc, (wx.PostScriptDC, wx.PostScriptDCPtr)):
+#            PPI = 96.0
 
-        bitmap = self.render_figure_as_bitmap(wFig_S, hFig_S, dpi)
-        self.GetDC().DrawBitmap(bitmap, wM_Dx, hM_Dx, False)
+        image = self.render_figure_as_image(wFig, hFig, PPI)
+
+#        self.GetDC().SetDeviceOrigin(wM_Dx, hM_Dx)
+#        self.GetDC().SetUserScale(S, S)
+#        self.GetDC().DrawBitmap(image.ConvertToBitmap(), 0, 0, False)
+
+        if self.IsPreview():
+            image = image.Scale(wFig_Dx, hFig_Dx)
+        self.GetDC().DrawBitmap(image.ConvertToBitmap(), wM_Dx, hM_Dx, False)
+
 #        self.GetDC().SetBrush(wx.BLACK_BRUSH)
 #        self.GetDC().DrawRectangle(wM_Dx, hM_Dx, wFig_Dx, hFig_Dx)
 
         print
         return True
 
-    def render_figure_as_bitmap(self, wFig, hFig, dpi):
+    def render_figure_as_image_wx(self, wFig, hFig, dpi):
+        figure = self.figure
+
+        print
+        print 'Width =', wFig
+        print 'Height =', hFig
+        print 'dpi =', dpi
+        print 'Bbox =', figure.bbox.get_bounds()
+        from matplotlib.backends.backend_wx import RendererWx
+
+        old_dpi = figure.dpi.get()
+        figure.dpi.set(dpi)#*1.25)
+        old_width = figure.figwidth.get()
+        figure.figwidth.set(wFig)#/1.25)
+        old_height = figure.figheight.get()
+        figure.figheight.set(hFig)#/1.25)
+        old_frameon = figure.frameon
+        figure.frameon = False
+
+        wFig_Px = int(figure.bbox.width())
+        hFig_Px = int(figure.bbox.height())
+
+        print 'Width Px =', wFig_Px
+        print 'Height Px =', hFig_Px
+
+        bitmap = wx.EmptyBitmap(wFig_Px, hFig_Px)
+        mdc = wx.MemoryDC()
+        mdc.SelectObject(bitmap)
+        mdc.SetBrush(wx.WHITE_BRUSH)
+        mdc.Clear()
+        mdc.SelectObject(wx.NullBitmap)
+
+        renderer = RendererWx(bitmap, figure.dpi)
+        figure.draw(renderer)
+
+        figure.dpi.set(old_dpi)
+        figure.figwidth.set(old_width)
+        figure.figheight.set(old_height)
+        figure.frameon = old_frameon
+
+        return bitmap.ConvertToImage()
+
+    def render_figure_as_image_agg(self, wFig, hFig, dpi):
         figure = self.figure
 
         print
@@ -847,8 +915,11 @@ class FigurePrintout(wx.Printout):
 
         image = wx.EmptyImage(wFig_Px, hFig_Px)
         image.SetData(agg.tostring_rgb())
-        return image.ConvertToBitmap()
-        return image.Scale(wFig_Px/2, hFig_Px/2).ConvertToBitmap()
+        return image
+
+    # FIXME: XXX: debugging hack
+    render_figure_as_image = render_figure_as_image_agg
+
 
 
 #
@@ -1242,7 +1313,6 @@ class PlotFrame(wx.Frame):
         """
         Handles File->Print Preview menu events
         """
-#        self.panel.Printer_Preview(); return
         self.printer.previewFigure(self, self.get_figure())
 
     def OnMenuFilePrint(self, event):
