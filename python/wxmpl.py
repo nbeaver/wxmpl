@@ -717,95 +717,81 @@ class FigurePrintout(wx.Printout):
         print 'IsPreview:', self.IsPreview()
         print
 
-        wPPI_S, hPPI_S = [float(x) for x in self.GetPPIScreen()]
+        # PPI: Pixels Per Inch of the DC
+        # PPI_P: Pixels Per Inch of the Printer
         wPPI_P, hPPI_P = [float(x) for x in self.GetPPIPrinter()]
-        wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
-        wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
-
         if self.IsPreview():
-            wPPI, hPPI = wPPI_S, hPPI_S
+            wPPI, hPPI = [float(x) for x in self.GetPPIScreen()]
         else:
             wPPI, hPPI = wPPI_P, hPPI_P
 
+        # Pg: Size of the page (inches)
+        # Pg_Px: Size of the page (pixels)
+        # Dev_Px: Size of the DC (pixels)
+        wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
+        wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
         wPg = wPg_Px / wPPI_P
         hPg = hPg_Px / hPPI_P
-        wDev = wDev_Px / wPPI_S
-        hDev = hDev_Px / hPPI_S
 
         print 'wPg =', wPg
         print 'hPg =', hPg
 
-        wM = 1.0 # minimum side margins in Inches
+        wM = 1.0 # minimum margins (inches)
         hM = 1.0
 
+        # Area: printable area within the margins (inches)
         wArea = wPg - 2*wM
         hArea = hPg - 2*hM
 
         print 'wArea =', wArea
         print 'hArea =', hArea
 
-        imgSize = 100 # 1..100
-        imgPercent = max(1, min(100, imgSize))/100.0
+        imgSize = 100 # % of printable area to use
+        imgPercent = max(1, min(100, imgSize)) / 100.0
 
+        # ratio of the figure's height to its width
         wOFig, hOFig = self.figure.get_size_inches()
-        wFig = imgPercent * wArea
-        hFig = wFig * hOFig/wOFig
+        aspectRatio = 1.0 #hOFig/wOFig
+
+        # Fig: printing size of the figure
+        max_wFig = hArea / aspectRatio
+        print 'max_wFig =', max_wFig
+        print 'imgPercent*wArea =', imgPercent  * wArea
+        wFig = min(imgPercent * wArea, max_wFig)
+        hFig = aspectRatio * wFig
+
+        # TODO: bound wFig by the maximum hFig==hArea
 
         print 'wFig =', wFig
         print 'hFig =', hFig
 
-        wS = (wDev_Px/wPPI)/wPg
-        hS = (hDev_Px/hPPI)/hPg
+        # scale factor = device size / page size (equals 1.0 for real printing)
+        S = ((wDev_Px/wPPI)/wPg + (hDev_Px/hPPI)/hPg)/2.0
 
-        print 'wS =', wS
-        print 'hS =', hS
-        print 'Scaled wArea =', wS*wArea
-        print 'Scaled wM =', wS*wM
-        print 'Scaled hM =', hS*hM
-        print 'Scaled wFig =', wS*wFig
-        print 'Scaled hFig =', hS*hFig
+        print 'S =', S
+        print 'S =', S
+        print 'Scaled wArea =', S*wArea
+        print 'Scaled wM =', S*wM
+        print 'Scaled hM =', S*hM
+        print 'Scaled wFig =', S*wFig
+        print 'Scaled hFig =', S*hFig
 
-        wSx = wS * wPPI
-        hSx = hS * hPPI
-        wFig_Sx = wSx * wFig
-        hFig_Sx = wSx * hFig
-        wM_Sx = wSx * wM
-        hM_Sx = hSx * hM
+        # Fig_S: scaled printing size of the figure (inches)
+        # M_S: scaled minimum margins (inches)
+        wFig_S = S * wFig
+        hFig_S = S * hFig
+        wM_S = S * wM
+        hM_S = S * hM
+
+        # Fig_Dx: scaled printing size of the figure (device pixels)
+        # M_Dx: scaled minimum margins (device pixels)
+        wFig_Dx = S * wPPI * wFig
+        hFig_Dx = S * hPPI * hFig
+        wM_Dx = S * wPPI * wM
+        hM_Dx = S * hPPI * hM
 
         self.GetDC().SetBrush(wx.BLACK_BRUSH)
-        self.GetDC().DrawRectangle(wM_Sx, hM_Sx, wFig_Sx, hFig_Sx)
-
-#
-#        if self.IsPreview():
-#            pxScale = wPPI_S/wPPI_P, hPPI_S/hPPI_P
-#            wPPI, hPPI = wPPI_S, hPPI_S
-#        else:
-#            sizeScale = 1.0
-#            pxScale = 1.0, 1.0
-#            wPPI, hPPI = wPPI_P, hPPI_P
-#
-#        wM_In = 1.0 # minimum side margins in Inches
-#        hM_In = 1.0
-#        wM = wM_In * wPPI_P
-#        hM = hM_In * hPPI_P
-#
-#        wArea = wPg - 2*wM
-#        hArea = hPg - 2*hM
-#
-#        imgSize = 100 # 1..100
-#        imgPercent = imgSize/100.0
-#
-#        wFig_In, hFig_In = self.figure.get_size_inches()
-#        wFig = imgPercent * wArea
-#        hFig = wFig * hFig_In/wFig_In
-#
-#        wM *= pxScale[0]
-#        hM *= pxScale[1]
-#        wFig *= pxScale[0]
-#        hFig *= pxScale[1]
-#
-#        self.GetDC().SetBrush(wx.BLACK_BRUSH)
-#        self.GetDC().DrawRectangle(wM, hM, wFig, hFig)
+        self.GetDC().DrawRectangle(wM_Dx, hM_Dx, wFig_Dx, hFig_Dx)
 
         print
         return True
