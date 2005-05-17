@@ -26,6 +26,7 @@ matplotlib.use('WXAgg')
 import matplotlib.numerix as Numerix
 from matplotlib.axes import PolarAxes, _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
@@ -725,13 +726,16 @@ class FigurePrintout(wx.Printout):
         else:
             wPPI, hPPI = wPPI_P, hPPI_P
 
+        PPI = (wPPI + hPPI)/2.0
+        PPI_P = (wPPI_P + hPPI_P)/2.0
+
         # Pg: Size of the page (inches)
         # Pg_Px: Size of the page (pixels)
         # Dev_Px: Size of the DC (pixels)
         wPg_Px,  hPg_Px  = [float(x) for x in self.GetPageSizePixels()]
         wDev_Px, hDev_Px = [float(x) for x in self.GetDC().GetSize()]
-        wPg = wPg_Px / wPPI_P
-        hPg = hPg_Px / hPPI_P
+        wPg = wPg_Px / PPI_P
+        hPg = hPg_Px / PPI_P
 
         print 'wPg =', wPg
         print 'hPg =', hPg
@@ -749,16 +753,15 @@ class FigurePrintout(wx.Printout):
         imgSize = 100 # % of printable area to use
         imgPercent = max(1, min(100, imgSize)) / 100.0
 
-        # ratio of the figure's height to its width
-        wOFig, hOFig = self.figure.get_size_inches()
-        aspectRatio = 1.0 #hOFig/wOFig
+        # ratio of the figure's width to its height
+        aspectRatio = 1.61803399
 
         # Fig: printing size of the figure
-        max_wFig = hArea / aspectRatio
-        print 'max_wFig =', max_wFig
-        print 'imgPercent*wArea =', imgPercent  * wArea
-        wFig = min(imgPercent * wArea, max_wFig)
-        hFig = aspectRatio * wFig
+        max_hFig = wArea / aspectRatio
+        print 'max_hFig =', max_hFig
+        print 'imgPercent*hArea =', imgPercent  * hArea
+        hFig = min(imgPercent * hArea, max_hFig)
+        wFig = aspectRatio * hFig
 
         # TODO: bound wFig by the maximum hFig==hArea
 
@@ -766,9 +769,8 @@ class FigurePrintout(wx.Printout):
         print 'hFig =', hFig
 
         # scale factor = device size / page size (equals 1.0 for real printing)
-        S = ((wDev_Px/wPPI)/wPg + (hDev_Px/hPPI)/hPg)/2.0
+        S = ((wDev_Px/PPI)/wPg + (hDev_Px/PPI)/hPg)/2.0
 
-        print 'S =', S
         print 'S =', S
         print 'Scaled wArea =', S*wArea
         print 'Scaled wM =', S*wM
@@ -785,16 +787,69 @@ class FigurePrintout(wx.Printout):
 
         # Fig_Dx: scaled printing size of the figure (device pixels)
         # M_Dx: scaled minimum margins (device pixels)
-        wFig_Dx = S * wPPI * wFig
-        hFig_Dx = S * hPPI * hFig
-        wM_Dx = S * wPPI * wM
-        hM_Dx = S * hPPI * hM
+        wFig_Dx = int(S * PPI * wFig)
+        hFig_Dx = int(S * PPI * hFig)
+        wM_Dx = int(S * PPI * wM)
+        hM_Dx = int(S * PPI * hM)
 
-        self.GetDC().SetBrush(wx.BLACK_BRUSH)
-        self.GetDC().DrawRectangle(wM_Dx, hM_Dx, wFig_Dx, hFig_Dx)
+        print 'Device wM =', wM_Dx
+        print 'Device hM =', hM_Dx
+        print 'Device wFig =', wFig_Dx
+        print 'Device hFig =', hFig_Dx
+
+        if PPI < 96:
+            dpi = 96
+            wFig_S *= PPI/96.0
+            hFig_S *= PPI/96.0
+        else:
+            dpi = PPI
+
+        bitmap = self.render_figure_as_bitmap(wFig_S, hFig_S, dpi)
+        self.GetDC().DrawBitmap(bitmap, wM_Dx, hM_Dx, False)
+#        self.GetDC().SetBrush(wx.BLACK_BRUSH)
+#        self.GetDC().DrawRectangle(wM_Dx, hM_Dx, wFig_Dx, hFig_Dx)
 
         print
         return True
+
+    def render_figure_as_bitmap(self, wFig, hFig, dpi):
+        figure = self.figure
+
+        print
+        print 'Width =', wFig
+        print 'Height =', hFig
+        print 'dpi =', dpi
+        print 'Bbox =', figure.bbox.get_bounds()
+        from matplotlib.backends.backend_agg import RendererAgg
+
+        old_dpi = figure.dpi.get()
+        figure.dpi.set(dpi)#*1.25)
+        old_width = figure.figwidth.get()
+        figure.figwidth.set(wFig)#/1.25)
+        old_height = figure.figheight.get()
+        figure.figheight.set(hFig)#/1.25)
+        old_frameon = figure.frameon
+        figure.frameon = False
+
+        wFig_Px = int(figure.bbox.width())
+        hFig_Px = int(figure.bbox.height())
+
+        print 'Width Px =', wFig_Px
+        print 'Height Px =', hFig_Px
+
+        agg = RendererAgg(wFig_Px, hFig_Px, Value(dpi))#*1.25))
+        figure.draw(agg)
+
+        figure.dpi.set(old_dpi)
+        figure.figwidth.set(old_width)
+        figure.figheight.set(old_height)
+        figure.frameon = old_frameon
+
+        image = wx.EmptyImage(wFig_Px, hFig_Px)
+        image.SetData(agg.tostring_rgb())
+        return image.ConvertToBitmap()
+        return image.Scale(wFig_Px/2, hFig_Px/2).ConvertToBitmap()
+
 
 #
 # wxPython event interface for the PlotPanel and PlotFrame
