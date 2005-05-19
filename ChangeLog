@@ -1,3 +1,9 @@
+05-19-2005  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2
+	* Added support for the wxPython printing framework via FigurePrinter and
+	  FigurePrintout.
+	* Added printing entries to the "File" menu of PlotFrame.
+
 05-16-2005  Ken McIvor  <mcivor@iit.edu>
 	* Crosshairs now redraw correctly after a point selection.
 

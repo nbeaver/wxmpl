@@ -14,10 +14,16 @@ WxMpl (wxPython+matplotlib) is a library of components that provide these
 missing features in the form of a better matplolib FigureCanvas.
 """
 
-__version__ = '1.1'
+# If you want to use something other than `lpr' to print under linux you may
+# specify that command here.
+LINUX_PRINTING_COMMAND = 'lpr'
+
+
+__version__ = '1.2'
 
 
 import wx
+import sys
 import os.path
 import weakref
 
@@ -26,7 +32,7 @@ matplotlib.use('WXAgg')
 import matplotlib.numerix as Numerix
 from matplotlib.axes import PolarAxes, _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.backends.backend_agg import FigureCanvasAgg, RendererAgg
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
@@ -34,7 +40,7 @@ from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
-    'EVT_POINT', 'EVT_SELECTION']
+    'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
 
 
 #
@@ -198,6 +204,12 @@ class PlotPanelDirector(DestructableViewMixin):
     Feathers:
     U{http://www.objectmentor.com/resources/articles/TheHumbleDialogBox.pdf}
     """
+
+    # TODO: merge all of the self.view.XYZ.something() methods into
+    #       accessor methods of the PlotPanel (Law of Demeter fixes).
+    # TODO: make `rightClickUnzoom' an option on PlotPanel, PlotFrame, etc
+    # TODO: add a programmatic interface to zooming
+
     def __init__(self, view, zoom=True, selection=True, rightClickUnzoom=True):
         """
         Create a new director for the C{PlotPanel} C{view}.  The keyword
@@ -207,11 +219,9 @@ class PlotPanelDirector(DestructableViewMixin):
         self.view = view
         self.zoomEnabled = zoom
         self.selectionEnabled = selection
-        self.rightClickUnzoom = rightClickUnzoom # FIXME: this is unused
+        self.rightClickUnzoom = rightClickUnzoom
         self.limits = AxesLimits()
         self.leftButtonPoint = None
-        # FIXME: Law of Demeter -- merge all of the self.view.XYZ.something()
-        # methods into accessor methods of the PlotPanel
 
     def setSelection(self, state):
         """
@@ -663,33 +673,70 @@ class CursorChanger(DestructableViewMixin):
 #
 
 # TODO: Map print quality settings onto PostScript resolutions automatically.
-#       For now, just set it to something reasonable to work around the fact
-#       that it defaults to `72' rather than `720' under wxPython 2.4.2.4
+#       For now, it's set to something reasonable to work around the fact that
+#       it defaults to `72' rather than `720' under wxPython 2.4.2.4
 wx.PostScriptDC_SetResolution(300)
 
-class FigurePrinter:
-    def __init__(self):
-        self.pData = wx.PrintData()
 
-    def pageSetup(self, frame):
-# TODO: write a nice PageSetupDialog() which lets users choose the
-#        * Paper size
-#        * Orientation
-#        * Aspect Ratio (rectangular or square)
-#        * % of the maximum image size (Slider from 25..100)
-#       and updates the height and width in real time
-        psdData = wx.PageSetupDialogData()
-        psdData.SetPrintData(self.pData)
-        dlg = wx.PageSetupDialog(frame, psdData)
-        if dlg.ShowModal() == wx.ID_OK:
-            self.pData = dlg.GetPageSetupData().GetPrintData()
-        dlg.Destroy()
+class FigurePrinter(DestructableViewMixin):
+    """
+    Provides a simplified interface to the wxPython printing framework that's
+    designed for printing matplotlib figures.
+    """
 
-    def previewFigure(self, frame, figure, title=None):
+    def __init__(self, view, printData=None):
+        """
+        Create a new C{FigurePrinter} associated with the wxPython widget
+        C{view}.  The keyword argument C{printData} supplies a C{wx.PrintData}
+        object containing the default printer settings.
+        """
+        self.view = view
+
+        if printData is None:
+            self.pData = wx.PrintData()
+        else:
+            self.pData = printData
+
+    def getPrintData(self):
+        """
+        Return the current printer settings in their C{wx.PrintData} object.
+        """
+        return self.pData
+
+    def setPrintData(self, printData):
+        """
+        Use the printer settings in C{printData}.
+        """
+        self.pData = printData
+
+# Disabled due to a bug in wxPython 2.4.2.4 where the page setup dialog ignores
+# the PaperId and always selects A4 by default.
+#    def pageSetup(self):
+#        psdData = wx.PageSetupDialogData()
+#        psdData.SetPaperId(self.pData.GetPaperId())
+#        psdData.SetPrintData(self.pData)
+#        psdData.EnableMargins(False)
+#
+#        dlg = wx.PageSetupDialog(self.view, psdData)
+#        if dlg.ShowModal() == wx.ID_OK:
+#            self.pData = dlg.GetPageSetupData().GetPrintData()
+#        dlg.Destroy()
+
+    def previewFigure(self, figure, title=None):
+        """
+        Open a "Print Preview" window for the matplotlib chart C{figure}.  The
+        keyword argument C{title} provides the printing framework with a title
+        for the print job.
+        """
+        window = self.view
+        while not isinstance(window, wx.Frame):
+            window = window.GetParent()
+            assert window is not None
+
         fpo = FigurePrintout(figure, title)
         fpo4p = FigurePrintout(figure, title)
         preview = wx.PrintPreview(fpo, fpo4p, self.pData)
-        frame = wx.PreviewFrame(preview, frame, 'Print Preview')
+        frame = wx.PreviewFrame(preview, window, 'Print Preview')
         if self.pData.GetOrientation() == wx.PORTRAIT:
             frame.SetSize(wx.Size(450, 625))
         else:
@@ -697,48 +744,78 @@ class FigurePrinter:
         frame.Initialize()
         frame.Show(True)
 
-
-    def printFigure(self, frame, figure, title=None):
+    def printFigure(self, figure, title=None):
+        """
+        Open a "Print" dialog to print the matplotlib chart C{figure}.  The
+        keyword argument C{title} provides the printing framework with a title
+        for the print job.
+        """
         pdData = wx.PrintDialogData()
         pdData.SetPrintData(self.pData)
         printer = wx.Printer(pdData)
         fpo = FigurePrintout(figure, title)
-        if printer.Print(frame, fpo, True):
+        if printer.Print(self.view, fpo, True):
             self.pData = pdData.GetPrintData()
 
 
 class FigurePrintout(wx.Printout):
-    def __init__(self, figure, title=None):
+    """
+    Render a matplotlib C{Figure} to a page or file using wxPython's printing
+    framework.
+    """
+
+    ASPECT_RECTANGULAR = 1
+    ASPECT_SQUARE = 2
+
+    def __init__(self, figure, title=None, size=None, aspectRatio=None):
+        """
+        Create a printout for the matplotlib chart C{figure}.  The
+        keyword argument C{title} provides the printing framework with a title
+        for the print job.  The keyword argument C{size} specifies how to scale
+        the figure, from 1 to 100 percent.  The keyword argument C{aspectRatio}
+        determines whether the printed figure will be rectangular or square.
+        """
         self.figure = figure
+
         figTitle = figure.gca().title.get_text()
         if not figTitle:
             figTitle = title or 'Matplotlib Figure'
+
+        if size is None:
+            size = 100
+        elif size < 0 or size > 100:
+            raise ValueError('invalid figure size')
+        self.size = size
+
+        if aspectRatio is None:
+            aspectRatio = self.ASPECT_RECTANGULAR
+        elif (aspectRatio != self.ASPECT_RECTANGULAR
+        and aspectRatio != self.ASPECT_SQUARE):
+            raise ValueError('invalid aspect ratio')
+        self.aspectRatio = aspectRatio
+
         wx.Printout.__init__(self, figTitle)
 
     def GetPageInfo(self):
+        """
+        Overrides wx.Printout.GetPageInfo() to provide the printing framework
+        with the number of pages in this print job.
+        """
         return (0, 1, 1, 1)
 
-    def HasPage(self, pageNumber):
-        return pageNumber == 1
-
     def OnPrintPage(self, pageNumber):
-        # These two bits need to become arguments to FigurePrintout.__init__()
-
+        """
+        Overrides wx.Printout.OnPrintPage to render the matplotlib figure to
+        a printing device context.
+        """
         # % of printable area to use
-        imgSize = 100
-        imgPercent = max(1, min(100, imgSize)) / 100.0
+        imgPercent = max(1, min(100, self.size)) / 100.0
 
         # ratio of the figure's width to its height
-        aspectRatio = 1.61803399 # TODO: allow Square and Rectangular images
-
-        print 'DC:', self.GetDC()
-        print 'DC.Size:', self.GetDC().GetSize()
-        print 'PageSizeMM:', self.GetPageSizeMM()
-        print 'PageSizePixels:', self.GetPageSizePixels()
-        print 'PPIPrinter:', self.GetPPIPrinter()
-        print 'PPIScreen:', self.GetPPIScreen()
-        print 'IsPreview:', self.IsPreview()
-        print
+        if self.aspectRatio == self.ASPECT_RECTANGULAR:
+            aspectRatio = 1.61803399
+        else:
+            self.aspectRatio = self.ASPECT_SQUARE
 
         # Device context to draw the page
         dc = self.GetDC()
@@ -764,41 +841,23 @@ class FigurePrintout(wx.Printout):
         wPg = wPg_Px / PPI_P
         hPg = hPg_Px / PPI_P
 
-        print 'wPg =', wPg
-        print 'hPg =', hPg
-
         # minimum margins (inches)
-        # XXX: should these be selectable?
-        wM = 1.0
-        hM = 1.0
+        # TODO: make these arguments to __init__()
+        wM = 0.75
+        hM = 0.75
 
         # Area: printable area within the margins (inches)
         wArea = wPg - 2*wM
         hArea = hPg - 2*hM
-
-        print 'wArea =', wArea
-        print 'hArea =', hArea
 
         # Fig: printing size of the figure
         # hFig is at a maximum when wFig == wArea
         max_hFig = wArea / aspectRatio
         hFig = min(imgPercent * hArea, max_hFig)
         wFig = aspectRatio * hFig
-        print 'max_hFig =', max_hFig
-        print 'imgPercent*hArea =', imgPercent  * hArea
-
-        print 'wFig =', wFig
-        print 'hFig =', hFig
 
         # scale factor = device size / page size (equals 1.0 for real printing)
         S = ((wDev_Px/PPI)/wPg + (hDev_Px/PPI)/hPg)/2.0
-
-        print 'S =', S
-        print 'Scaled wArea =', S*wArea
-        print 'Scaled wM =', S*wM
-        print 'Scaled hM =', S*hM
-        print 'Scaled wFig =', S*wFig
-        print 'Scaled hFig =', S*hFig
 
         # Fig_S: scaled printing size of the figure (inches)
         # M_S: scaled minimum margins (inches)
@@ -814,98 +873,35 @@ class FigurePrintout(wx.Printout):
         wM_Dx = int(S * PPI * wM)
         hM_Dx = int(S * PPI * hM)
 
-        print 'Device wM =', wM_Dx
-        print 'Device hM =', hM_Dx
-        print 'Device wFig =', wFig_Dx
-        print 'Device hFig =', hFig_Dx
-
-#        if isinstance(dc, (wx.PostScriptDC, wx.PostScriptDCPtr)):
-#            PPI = 96.0
-
         image = self.render_figure_as_image(wFig, hFig, PPI)
-
-#        self.GetDC().SetDeviceOrigin(wM_Dx, hM_Dx)
-#        self.GetDC().SetUserScale(S, S)
-#        self.GetDC().DrawBitmap(image.ConvertToBitmap(), 0, 0, False)
 
         if self.IsPreview():
             image = image.Scale(wFig_Dx, hFig_Dx)
         self.GetDC().DrawBitmap(image.ConvertToBitmap(), wM_Dx, hM_Dx, False)
 
-#        self.GetDC().SetBrush(wx.BLACK_BRUSH)
-#        self.GetDC().DrawRectangle(wM_Dx, hM_Dx, wFig_Dx, hFig_Dx)
-
-        print
         return True
 
-    def render_figure_as_image_wx(self, wFig, hFig, dpi):
+    def render_figure_as_image(self, wFig, hFig, dpi):
+        """
+        Renders a matplotlib figure using the Agg backend and stores the result
+        in a C{wx.Image}.  The arguments C{wFig} and {hFig} are the width and
+        height of the figure, and C{dpi} is the dots-per-inch to render at.
+        """
         figure = self.figure
 
-        print
-        print 'Width =', wFig
-        print 'Height =', hFig
-        print 'dpi =', dpi
-        print 'Bbox =', figure.bbox.get_bounds()
-        from matplotlib.backends.backend_wx import RendererWx
-
         old_dpi = figure.dpi.get()
-        figure.dpi.set(dpi)#*1.25)
+        figure.dpi.set(dpi)
         old_width = figure.figwidth.get()
-        figure.figwidth.set(wFig)#/1.25)
+        figure.figwidth.set(wFig)
         old_height = figure.figheight.get()
-        figure.figheight.set(hFig)#/1.25)
+        figure.figheight.set(hFig)
         old_frameon = figure.frameon
         figure.frameon = False
 
         wFig_Px = int(figure.bbox.width())
         hFig_Px = int(figure.bbox.height())
 
-        print 'Width Px =', wFig_Px
-        print 'Height Px =', hFig_Px
-
-        bitmap = wx.EmptyBitmap(wFig_Px, hFig_Px)
-        mdc = wx.MemoryDC()
-        mdc.SelectObject(bitmap)
-        mdc.SetBrush(wx.WHITE_BRUSH)
-        mdc.Clear()
-        mdc.SelectObject(wx.NullBitmap)
-
-        renderer = RendererWx(bitmap, figure.dpi)
-        figure.draw(renderer)
-
-        figure.dpi.set(old_dpi)
-        figure.figwidth.set(old_width)
-        figure.figheight.set(old_height)
-        figure.frameon = old_frameon
-
-        return bitmap.ConvertToImage()
-
-    def render_figure_as_image_agg(self, wFig, hFig, dpi):
-        figure = self.figure
-
-        print
-        print 'Width =', wFig
-        print 'Height =', hFig
-        print 'dpi =', dpi
-        print 'Bbox =', figure.bbox.get_bounds()
-        from matplotlib.backends.backend_agg import RendererAgg
-
-        old_dpi = figure.dpi.get()
-        figure.dpi.set(dpi)#*1.25)
-        old_width = figure.figwidth.get()
-        figure.figwidth.set(wFig)#/1.25)
-        old_height = figure.figheight.get()
-        figure.figheight.set(hFig)#/1.25)
-        old_frameon = figure.frameon
-        figure.frameon = False
-
-        wFig_Px = int(figure.bbox.width())
-        hFig_Px = int(figure.bbox.height())
-
-        print 'Width Px =', wFig_Px
-        print 'Height Px =', hFig_Px
-
-        agg = RendererAgg(wFig_Px, hFig_Px, Value(dpi))#*1.25))
+        agg = RendererAgg(wFig_Px, hFig_Px, Value(dpi))
         figure.draw(agg)
 
         figure.dpi.set(old_dpi)
@@ -916,10 +912,6 @@ class FigurePrintout(wx.Printout):
         image = wx.EmptyImage(wFig_Px, hFig_Px)
         image.SetData(agg.tostring_rgb())
         return image
-
-    # FIXME: XXX: debugging hack
-    render_figure_as_image = render_figure_as_image_agg
-
 
 
 #
@@ -1042,10 +1034,11 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         Handles the wxPython window destruction event.
         """
-        objects = [self.cursor, self.location, self.rubberband,
-            self.crosshairs, self.director]
-        for obj in objects:
-            obj.destroy()
+        if self.GetId() == evt.GetEventObject().GetId():
+            objects = [self.cursor, self.location, self.rubberband,
+                self.crosshairs, self.director]
+            for obj in objects:
+                obj.destroy()
 
     def _onPaint(self, evt):
         """
@@ -1219,10 +1212,23 @@ class PlotFrame(wx.Frame):
         C{wx.Frame}.
         """
         wx.Frame.__init__(self, parent, id, title, **kwds)
-        self.printer = FigurePrinter()
         self.panel = PlotPanel(self, -1, size, dpi, cursor, location,
             crosshairs, selection, zoom)
 
+        pData = wx.PrintData()
+        pData.SetPaperId(wx.PAPER_LETTER)
+        pData.SetPrinterCommand(LINUX_PRINTING_COMMAND)
+        self.printer = FigurePrinter(self, pData)
+
+        self.create_menus()
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
+        self.SetSizer(sizer)
+        self.Fit()
+
+        wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
+
+    def create_menus(self):
         mainMenu = wx.MenuBar()
         menu = wx.Menu()
 
@@ -1231,17 +1237,20 @@ class PlotFrame(wx.Frame):
             'Save a copy of the current plot')
         wx.EVT_MENU(self, id, self.OnMenuFileSave)
 
-        menu.AppendSeparator()
+# See FigurePrinter.pageSetup()
+#        id = wx.NewId()
+#        menu.Append(id, 'Page Set&up...',
+#            'Set the size and margins of the printed figure')
+#        wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
 
-        id = wx.NewId()
-        menu.Append(id, 'Page Set&up...',
-            'Set the size and margins of the printed figure')
-        wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
 
-        id = wx.NewId()
-        menu.Append(id, 'Print Pre&view...',
-            'Preview the print version of the current plot')
-        wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
+        if not sys.platform.startswith('darwin'):
+            menu.AppendSeparator()
+
+            id = wx.NewId()
+            menu.Append(id, 'Print Pre&view...',
+                'Preview the print version of the current plot')
+            wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
 
         id = wx.NewId()
         menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
@@ -1264,12 +1273,11 @@ class PlotFrame(wx.Frame):
         mainMenu.Append(menu, '&Help')
         self.SetMenuBar(mainMenu)
 
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
-        self.SetSizer(sizer)
-        self.Fit()
+    def OnDestroy(self, evt):
+        if self.GetId() == evt.GetEventObject().GetId():
+            self.printer.destroy()
 
-    def OnMenuFileSave(self, event):
+    def OnMenuFileSave(self, evt):
         """
         Handles File->Save menu events.
         """
@@ -1303,31 +1311,32 @@ class PlotFrame(wx.Frame):
             wx.MessageBox('Could not save file: %s' % err, 'Error - plotit',
                 parent=self, style=wx.OK|wx.ICON_ERROR)
 
-    def OnMenuFilePageSetup(self, event):
-        """
-        Handles File->Page Setup menu events
-        """
-        self.printer.pageSetup(self)
+# See FigurePrinter.pageSetup()
+#    def OnMenuFilePageSetup(self, evt):
+#        """
+#        Handles File->Page Setup menu events
+#        """
+#        self.printer.pageSetup()
 
-    def OnMenuFilePrintPreview(self, event):
+    def OnMenuFilePrintPreview(self, evt):
         """
         Handles File->Print Preview menu events
         """
-        self.printer.previewFigure(self, self.get_figure())
+        self.printer.previewFigure(self.get_figure())
 
-    def OnMenuFilePrint(self, event):
+    def OnMenuFilePrint(self, evt):
         """
         Handles File->Print menu events
         """
-        self.printer.printFigure(self, self.get_figure())
+        self.printer.printFigure(self.get_figure())
 
-    def OnMenuFileClose(self, event):
+    def OnMenuFileClose(self, evt):
         """
         Handles File->Close menu events.
         """
         self.Close()
 
-    def OnMenuHelpAbout(self, event):
+    def OnMenuHelpAbout(self, evt):
         """
         Handles Help->About menu events.
         """
