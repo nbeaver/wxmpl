@@ -1244,6 +1244,7 @@ class PlotFrame(wx.Frame):
 #        wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
 
 
+        # OSX does previewing using PDFs and the Preview Application
         if not sys.platform.startswith('darwin'):
             menu.AppendSeparator()
 
@@ -1252,9 +1253,11 @@ class PlotFrame(wx.Frame):
                 'Preview the print version of the current plot')
             wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
 
-        id = wx.NewId()
-        menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
-        wx.EVT_MENU(self, id, self.OnMenuFilePrint)
+            # Printing under OSX doesn't work well because the DPI of the
+            # printer is always reported as 72.
+            id = wx.NewId()
+            menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
+            wx.EVT_MENU(self, id, self.OnMenuFilePrint)
 
         menu.AppendSeparator()
 
