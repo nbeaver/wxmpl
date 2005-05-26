@@ -1,3 +1,6 @@
+05-26-2005  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.1
+
 05-23-2005  Ken McIvor  <mcivor@iit.edu>
 	* Disabled printing under OSX.  The DPI of the printer is always being
 	  reported as 72, resulting in ugly plots.

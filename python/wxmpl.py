@@ -19,7 +19,7 @@ missing features in the form of a better matplolib FigureCanvas.
 LINUX_PRINTING_COMMAND = 'lpr'
 
 
-__version__ = '1.2'
+__version__ = '1.2.1'
 
 
 import wx
