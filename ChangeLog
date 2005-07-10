@@ -1,3 +1,9 @@
+07-10-2005  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.2
+	* Fixed a bug in the way channels without data were being handled that
+	  resulted in axes autoscaling starting at x=0 when the data finally
+	  arrived.
+
 05-26-2005  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.1
 

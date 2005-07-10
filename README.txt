@@ -19,7 +19,8 @@ REQUIREMENTS
 * Python 2.3.  Version 2.4 has not been tested.
     http://www.python.org
 
-* wxPython 2.4.2.4 or a later 2.5 release.  Version 2.6 has not been tested.
+* wxPython 2.4.2.4, a later 2.5 release, or 2.6.0.  Early 2.5 releases are
+  incompatible due to API changes that were later abandoned.
     http://www.wxpython.org
 
 * matplotlib 0.72 or above.
@@ -30,7 +31,7 @@ PLATFORMS
 ---------
 
 WxMpl has been tested under Debian Stable, Debian Testing, Debian Unstable, and
-Mac OS 10.3.
+Mac OS 10.3.9.
 
 
 INSTALLATION

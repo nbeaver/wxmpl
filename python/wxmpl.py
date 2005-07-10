@@ -19,7 +19,7 @@ missing features in the form of a better matplolib FigureCanvas.
 LINUX_PRINTING_COMMAND = 'lpr'
 
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 
 
 import wx
@@ -1745,12 +1745,15 @@ class StripCharter:
         """
         Initially plot a line corresponding to one of the data-providers.
         """
+        empty = False
         x = channel.getX()
         y = channel.getY()
         if x is None or y is None:
-            x = y = Numerix.zeros((0,), Numerix.Float)
+            x = y = []
+            empty = True
 
         line = styleGen(x, y).next()
+        line._wxmpl_empty_line = empty
 
         if channel.getColor() is not None:
             line.set_color(channel.getColor())
@@ -1762,8 +1765,9 @@ class StripCharter:
             line.set_markerfacecolor(line.get_color())
 
         line.set_label(channel.getLabel())
-        self.axes.add_line(line)
         self.lines[channel] = line
+        if not empty:
+            self.axes.add_line(line)
 
     def _update_channel(self, channel, zoomed):
         """
@@ -1788,12 +1792,17 @@ class StripCharter:
 
         x, y = newX, newY
         line.set_data(x, y)
-        if line.get_transform() != axes.transData:
-            xys = axes._get_verts_in_data_coords(
-                line.get_transform(), zip(x, y))
-            x = Numerix.array([a for (a, b) in xys])
-            y = Numerix.array([b for (a, b) in xys])
-        axes.update_datalim_numerix(x, y)
+
+        if line._wxmpl_empty_line:
+            axes.add_line(line)
+            line._wxmpl_empty_line = False
+        else:
+            if line.get_transform() != axes.transData:
+                xys = axes._get_verts_in_data_coords(
+                    line.get_transform(), zip(x, y))
+                x = Numerix.array([a for (a, b) in xys])
+                y = Numerix.array([b for (a, b) in xys])
+            axes.update_datalim_numerix(x, y)
 
         if zoomed:
             return axes.viewLim.overlaps(

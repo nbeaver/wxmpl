@@ -1,4 +1,4 @@
 include README.txt LICENSE.txt ChangeLog MANIFEST.in MANIFEST
-recursive-include demos *
-recursive-include reference *
-recursive-include tutorial *
+recursive-include demos *.py
+recursive-include reference *.css *.html
+recursive-include tutorial *.css *.html *.mkd *.png *.py
