@@ -1096,15 +1096,16 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         return self.director.zoomed(axes)
 
-    def draw(self):
+    def draw(self, repaint=True):
         """
         Draw the associated C{Figure} onto the screen.
         """
         if self.director.canDraw() and isinstance(self, FigureCanvasWxAgg):
-            FigureCanvasWxAgg.draw(self)
-            self.location.redraw()
-            self.crosshairs.redraw()
-            self.rubberband.redraw()
+            FigureCanvasWxAgg.draw(self, repaint)
+            if repaint:
+                self.location.redraw()
+                self.crosshairs.redraw()
+                self.rubberband.redraw()
 
     def notify_point(self, axes, x, y):
         """

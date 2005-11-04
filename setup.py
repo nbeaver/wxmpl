@@ -10,16 +10,17 @@
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 
-import distutils
-from distutils.core import setup
+NAME    = 'wxmpl'
+VERSION = '1.3devel'
 
-setup(
-    name = 'wxmpl',
-    version = '1.2.2',
-    maintainer = 'Ken McIvor',
-    maintainer_email = 'mcivor@iit.edu',
-    license = 'MIT X11/XFree86 style',
-    description = 'A library for painlessly embedding matplotlib in wxPython',
-    package_dir = {'': 'python'},
-    py_modules = ['wxmpl']
-)
+AUTHOR       = 'Ken McIvor'
+AUTHOR_EMAIL = 'mcivor@iit.edu'
+
+LICENSE    = 'MIT'
+DESCRPTION = 'A library for painlessly embedding matplotlib in wxPython'
+
+PACKAGE_DIR = {'': 'lib'}
+PY_MODULES  = ['wxmpl']
+SCRIPTS     = ['plotit']
+
+execfile('metasetup.py')
