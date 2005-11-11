@@ -42,11 +42,11 @@
 #
 #
 # Requiring Setuptools
-#   If you're using some important feature of setuptools to build your
-#   packages you should bundle ez_setup.py with your package and follow
-#   the instructions in its docstring:
-#
-#       http://peak.telecommunity.com/dist/ez_setup.py
+#   If you're using setuptools-specific features to build your packages, you
+#   can tell metasetup to refuse to run without setuptools:
+#     * In `setup.py', set the global variable REQUIRE_SETUPTOOLS to True.
+#     * Set the environment variable REQUIRE_SETUPTOOLS to y, yes, on, or true.
+#       These values are case-insensitive.
 #
 #
 # Disabling Setuptools
@@ -105,7 +105,7 @@
 #
 # ChangeLog
 #
-# 11-03-2005  Ken McIvor <mcivor@iit.edu>
+# 11-11-2005  Ken McIvor <mcivor@iit.edu>
 #  * Release: 1.0
 ################################################################################
 
@@ -131,11 +131,11 @@ def _have_setuptools():
     Checks for the presence of the setuptools package.
 
     Requiring Setuptools
-      If you're using some important feature of setuptools to build your
-      packages you should bundle ez_setup.py with your package and follow
-      the instructions in its docstring:
-
-          http://peak.telecommunity.com/dist/ez_setup.py
+      If you're using setuptools-specific features to build your packages, you
+      can tell metasetup to refuse to run without setuptools:
+        * In `setup.py', set the global variable REQUIRE_SETUPTOOLS to True.
+        * Set the environment variable REQUIRE_SETUPTOOLS to y, yes, on, or
+          true.  These values are case-insensitive.
 
     Disabling Setuptools
       By default, metasetup favors setuptools over distutils.  However, you can
@@ -144,29 +144,45 @@ def _have_setuptools():
         * Set the environment variable USE_SETUPTOOLS to n, no, off, or
           false.  These values are case-insensitive.
     """
+    # if it's been set, return the cached value
     hst = getattr(_have_setuptools, 'HAVE_SETUPTOOLS', None)
     if hst is not None:
         return hst
 
+    true_values  = 'y', 'yes',  'on',  'true'
+    false_values = 'n', 'no',   'off', 'false'
+
     hst = False
     useVar    = globals().get('USE_SETUPTOOLS', True)
-    useEnvVar = os.getenv('USE_SETUPTOOLS', 'yes').lower()
-    disable_strings = 'n', 'no',  'off', 'false'
+    useEnvVar = os.getenv('USE_SETUPTOOLS', 'true').lower()
 
-    if not useVar or useEnvVar in disable_strings:
+    rst = False
+    reqVar    = globals().get('REQUIRE_SETUPTOOLS', False)
+    reqEnvVar = os.getenv('REQUIRE_SETUPTOOLS', 'false').lower()
+
+    hst = False
+    if not useVar or useEnvVar in false_values:
         if 'setuptools' in sys.modules:
             hst = True
             distutils.log.warn('metasetup: ignoring USE_SETUPTOOLS '
                 '(setuptools is already loaded)')
-        else:
-            hst = False
+            _have_setuptools.HAVE_SETUPTOOLS = hst
+            return hst
+        elif reqVar or reqEnvVar in true_values:
+            distutils.log.error('metasetup: ignoring USE_SETUPTOOLS '
+                '(REQUIRE_SETUPTOOLS is true)')
+
+    try:
+        import setuptools
+    except ImportError:
+        hst = False
     else:
-        try:
-            import setuptools
-        except ImportError:
-            hst = False
-        else:
-            hst = True
+        hst = True
+
+    if not hst and (reqVar or reqEnvVar in true_values):
+        distutils.log.error('%s: this script requires setuptools to run'
+            ' (even to display help)' % os.path.basename(sys.argv[0]))
+        sys.exit(1)
 
     _have_setuptools.HAVE_SETUPTOOLS = hst
     return hst

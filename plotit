@@ -32,6 +32,11 @@
 
 # ChangeLog
 #
+# 11-11-2005  Ken McIvor <mcivor@iit.edu>
+#  * Release: 2.3
+#  * Merged the ScalarFormatter fix from August back into the main trunk.  This
+#    fix undoes some of the confusing axis labeling caused by changes
+#    introduced in matplotlib 0.81.
 # 10-21-2005  Ken McIvor <mcivor@iit.edu>
 #  * Release: 2.2
 #  * Added full support for plotgngu.pl's start_plot command.  The two integer
@@ -109,7 +114,7 @@
 # 10-03-2004  Ken McIvor <mcivken@iit.edu>
 #   * release: 1.0
 
-__version__ = '2.2'
+__version__ = '2.3'
 
 
 import ConfigParser
@@ -157,6 +162,7 @@ try:
     import xdp.io # if it's available, use XDP to load data
 except ImportError:
     xdp = None
+
 
 import matplotlib.numerix as Numerix
 from matplotlib.font_manager import FontProperties
@@ -307,6 +313,13 @@ class PlotDirector:
         store_window_position(self.frame.GetPosition())
         evt.Skip()
 
+    def setup_axes(self, axes):
+        if matplotlib.__version__ >= '0.81':
+            axes.yaxis.set_major_formatter(
+                matplotlib.ticker.OldScalarFormatter())
+            axes.xaxis.set_major_formatter(
+                matplotlib.ticker.OldScalarFormatter())
+
     def cleanup(self):
         pass
 
@@ -331,11 +344,14 @@ class StripChartDirector(PlotDirector):
     def __init__(self, frame, inputFile):
         PlotDirector.__init__(self, frame)
 
+        axes = frame.get_figure().gca()
+        self.setup_axes(axes)
+
         frame.SetTitle(get_frame_title(inputFile))
         self.inputFile = inputFile
         self.canClose = inputFile is not sys.stdin
-        self.interpreter = CommandInterpreter(frame.get_figure().gca(),
-            inputFile)
+
+        self.interpreter = CommandInterpreter(axes, inputFile)
         self.queue = Queue()
         self.fileReader = FileReaderThread(inputFile, self.queue)
         self.timer = wx.PyTimer(self.OnTimer)
@@ -374,6 +390,7 @@ class QuickPlotDirector(PlotDirector):
         frame.SetTitle('PlotIt')
 
         axes = frame.get_figure().gca()
+        self.setup_axes(axes)
 
         # FIXME: refactor this chunk into a function shared by
         # QuickPlotDirector and ExpressionPlotDirector
@@ -420,6 +437,7 @@ class ExpressionPlotDirector(PlotDirector):
         frame.SetTitle('PlotIt')
 
         axes = frame.get_figure().gca()
+        self.setup_axes(axes)
         axes.set_ylabel(yExpr.replace('@', '$'))
 
         if xExpr is None:

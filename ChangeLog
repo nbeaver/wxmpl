@@ -1,6 +1,8 @@
-11-XX-2005  Ken McIvor  <mcivor@iit.edu>
+11-11-2005  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.3
 	* Renamed `python/' to `lib/'
-	* Fixed an incompatability with matplotlib 0.84's FigureCanvasWx.draw().
+	* Fixed an incompatability with FigureCanvasWx.draw() introduced in
+	  matplotlib 0.84.
 	* Included the `plotit' script in the distribution.
 	* Updated setup.py to use metasetup.py
 

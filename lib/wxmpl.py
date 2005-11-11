@@ -1101,7 +1101,11 @@ class PlotPanel(FigureCanvasWxAgg):
         Draw the associated C{Figure} onto the screen.
         """
         if self.director.canDraw() and isinstance(self, FigureCanvasWxAgg):
-            FigureCanvasWxAgg.draw(self, repaint)
+            if '0.84' <= matplotlib.__version__:
+                FigureCanvasWxAgg.draw(self, repaint)
+            else:
+                FigureCanvasWxAgg.draw(self)
+
             if repaint:
                 self.location.redraw()
                 self.crosshairs.redraw()
