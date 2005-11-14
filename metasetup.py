@@ -41,6 +41,17 @@
 #    * py2exe: console, windows, service, com_server, zipfile
 #
 #
+# Building Extensions
+#   Setuptools monkeypatches distutils, injecting its own Extension class into
+#   distutils.core.  This makes things break if you import setuptools *after*
+#   creating instances of distutils.Extension.  Here's the workaround:
+#
+#   try:
+#       from setuptools import Extension
+#   except ImportError:
+#       from distutils.core import Extension
+#
+#
 # Requiring Setuptools
 #   If you're using setuptools-specific features to build your packages, you
 #   can tell metasetup to refuse to run without setuptools:

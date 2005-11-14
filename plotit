@@ -32,8 +32,12 @@
 
 # ChangeLog
 #
-# 11-11-2005  Ken McIvor <mcivor@iit.edu>
+# 11-14-2005  Ken McIvor <mcivor@iit.edu>
 #  * Release: 2.3
+#  * Column names may be used in expressions if they are present in the files
+#  * Empty data files no longer cause the entire plot to fail
+#  * Column expressions are now masked arrays, clamping +/- INF
+# 11-11-2005  Ken McIvor <mcivor@iit.edu>
 #  * Merged the ScalarFormatter fix from August back into the main trunk.  This
 #    fix undoes some of the confusing axis labeling caused by changes
 #    introduced in matplotlib 0.81.
@@ -395,9 +399,12 @@ class QuickPlotDirector(PlotDirector):
         # FIXME: refactor this chunk into a function shared by
         # QuickPlotDirector and ExpressionPlotDirector
         lines = []
-        for inputFile in inputFiles:
+        for inputFile in inputFiles[:]:
             x, y = quickplot_evaluate_file(inputFile)
-            lines.append((x, y))
+            if x is None or y is None:
+                inputFiles.remove(inputFile)
+            else:
+                lines.append((x, y))
 
         inputs = [split_path(x) for x in inputFiles]
         if len(inputs) == 1:
@@ -425,6 +432,8 @@ class QuickPlotDirector(PlotDirector):
             line.set_markerfacecolor(line.get_color())
 
         if not axes.get_lines():
+            sys.stderr.write('%s: no data to plot\n'
+                % os.path.basename(sys.argv[0]))
             sys.exit(1)
 
         axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
@@ -446,9 +455,12 @@ class ExpressionPlotDirector(PlotDirector):
             axes.set_xlabel(xExpr.replace('@', '$'))
 
         lines = []
-        for inputFile in inputFiles:
+        for inputFile in inputFiles[:]:
             x, y = evaluate_file(inputFile, xExpr, yExpr)
-            lines.append((x, y))
+            if x is None or y is None:
+                inputFiles.remove(inputFile)
+            else:
+                lines.append((x, y))
 
         inputs = [split_path(x) for x in inputFiles]
         if len(inputs) == 1:
@@ -476,6 +488,8 @@ class ExpressionPlotDirector(PlotDirector):
             line.set_markerfacecolor(line.get_color())
 
         if not axes.get_lines():
+            sys.stderr.write('%s: no data to plot\n'
+                % os.path.basename(sys.argv[0]))
             sys.exit(1)
 
         axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
@@ -793,7 +807,9 @@ class ExpressionChannel(wxmpl.Channel):
             return failure('Error evaluating X expression `%s\' for %s: %s',
                 self.xExpr, self.fileDesc, e)
 
-        if self.x is not None and not isinstance(self.x, Numerix.ArrayType):
+        if (self.x is not None
+        and not isinstance(self.x,
+         (Numerix.ArrayType, Numerix.ma.MaskedArray))):
             return failure('Error evaluating X expression `%s\' for %s: '
                 'result is not a vector', self.xExpr, self.fileDesc)
 
@@ -812,7 +828,9 @@ class ExpressionChannel(wxmpl.Channel):
             return failure('Error evaluating Y expression `%s\' for %s: %s',
                 self.yExpr, self.fileDesc, e)
 
-        if self.y is not None and not isinstance(self.y, Numerix.ArrayType):
+        if (self.y is not None
+        and not isinstance(self.y,
+         (Numerix.ArrayType, Numerix.ma.MaskedArray))):
             return failure('Error evaluating Y expression `%s\' for %s: '
                 'result is not a vector', self.yExpr, self.fileDesc)
 
@@ -834,7 +852,7 @@ def quickplot_evaluate_file(fileName):
 
     data = load_data(fileName)
     if data is None:
-        fatalError('File contains no data: %s' % fileName)
+        return None, None
 
     if data.shape[1] == 1:
         return Numerix.arange(0, data.shape[0], 1, Numerix.Float), data[:, 0]
@@ -847,24 +865,24 @@ def evaluate_file(fileName, xExpr, yExpr):
         print >> sys.stderr, (msg % args)
         return None, None
 
-    data = load_data(fileName)
+    data, columnNames = load_data(fileName)
     if data is None:
-        fatalError('File contains no data: %s' % fileName)
+        return None, None
 
     try:
-        x = evaluate_expression(xExpr, data)
+        x = evaluate_expression(xExpr, data, columnNames)
     except Exception, e:
         return failure('Error evaluating X for file `%s\': %s', fileName, e)
 
     try:
-        y = evaluate_expression(yExpr, data)
+        y = evaluate_expression(yExpr, data, columnNames)
     except Exception, e:
         return failure('Error evaluating Y for file `%s\': %s', fileName, e)
 
-    if not isinstance(x, Numerix.ArrayType):
+    if not isinstance(x, (Numerix.ArrayType, Numerix.ma.MaskedArray)):
         return failure('Error evaluating X for file `%s\': result is not a '
             'vector', fileName)
-    elif not isinstance(y, Numerix.ArrayType):
+    elif not isinstance(y, (Numerix.ArrayType, Numerix.ma.MaskedArray)):
         return failure('Error evaluating Y for file `%s\': result is not a '
             'vector', fileName)
 
@@ -881,7 +899,7 @@ def load_data(fileName):
         except IOError:
             pass
         else:
-            return dataset.getMatrix()
+            return dataset.getMatrix(), dataset.getColumnNames()
 
     try:
         input = file(fileName, 'r')
@@ -898,7 +916,7 @@ def load_data(fileName):
         line = input.readline()
 
     input.close()
-    return buffer.getData()
+    return buffer.getData(), ()
 
 
 def _parse_data(buffer, line):
@@ -926,6 +944,7 @@ def _parse_data(buffer, line):
 
 def is_plot_expression(string):
     return (COLNUMS.search(string) is not None
+        or COLNAMES.search(string) is not None
         or PG_COLNUMS.search(string) is not None)
 
 
@@ -943,7 +962,7 @@ def convert_plotgnu_expression(pgExpr, offset):
     return expr
 
 
-def evaluate_expression(expr, data):
+def evaluate_expression(expr, data, columnNames=()):
     if data is None:
         return None
     elif expr is None:
@@ -955,36 +974,51 @@ def evaluate_expression(expr, data):
     for column, _, number in COLNUMS.findall(expr):
         number = int(number)
         if number < 1 or number > columnCount:
-            raise ValueError('invalid column number: %s' % number)
+            raise ValueError('invalid column "%s"' % number)
+
+    for column, _, name in COLNAMES.findall(expr):
+        if not columnNames:
+            raise ValueError('column names are unavailable')
+        elif name not in columnNames:
+            raise ValueError('invalid column "%s"' % name)
 
     expr = COLNUMS.sub('__C_\g<number>', expr)
+    expr = COLNAMES.sub('__C_\g<name>', expr)
 
     try:
         code = compile(expr, '<expr>', 'eval')
     except SyntaxError, e:
-        raise ValueError('incorrect syntax' % e)
+        raise ValueError('incorrect syntax: %s' % e)
 
-    for j in range(0, columnCount):
-        namespace['__C_%d' % (j+1)] = None
+    for i in range(0, columnCount):
+        namespace['__C_%d' % (i+1)] = None
+    for i in range(0, min(columnCount, len(columnNames))):
+        namespace['__C_%s' % columnNames[i]] = None
+
     for var in code.co_names:
         if not namespace.has_key(var):
-            raise ValueError('invalid variable name: %s' % var)
+            raise ValueError('invalid variable "%s"' % var)
 
     # try to evaluate things the fast way
     # XXX: causes problems with Matplotlib, which chokes on `inf' and `NaN'.
-#    for j in range(0, columnCount):
-#        namespace['__C_%d' % (j+1)] = data[:, j]
-#
-#    try:
-#        return eval(code, namespace)
-#    except Exception, e:
-#        pass
+    for i in range(0, columnCount):
+        namespace['__C_%d' % (i+1)] = data[:, i]
+    for i in range(0, min(columnCount, len(columnNames))):
+        namespace['__C_%s' % columnNames[i]] = data[:, i]
+
+    try:
+        result = eval(code, namespace)
+        return Numerix.ma.masked_outside(result, -1e308, 1e308)
+    except Exception, e:
+        pass
 
     # evaluate one point at a time if necessary
     res = Numerix.zeros((data.shape[0],), Numerix.Float)
     for i in range(0, data.shape[0]):
         for j in range(0, columnCount):
             namespace['__C_%d' % (j+1)] = data[i, j]
+        for j in range(0, min(columnCount, len(columnNames))):
+            namespace['__C_%s' % columnNames[j]] =data[i, j]
 
         try:
             res[i] = eval(code, namespace)
@@ -992,7 +1026,8 @@ def evaluate_expression(expr, data):
             pass
     return res
 
-COLNUMS = sre.compile(r'(?P<column>(\$|\@)(?P<number>\d+))')
+COLNUMS    = sre.compile(r'(?P<column>(\$|\@)(?P<number>\d+))')
+COLNAMES   = sre.compile(r'(?P<column>(\$|\@)(?P<name>[a-zA-Z_][a-zA-Z0-9_]*))')
 PG_COLNUMS = sre.compile(r'(?P<column>\$f\[(?P<number>\d+)\])')
 
 EVAL_NAMESPACE = {
@@ -1157,8 +1192,8 @@ multiple data files from the command-line.'''
 
     if (not len(args)
     or (len(args) == 2
-     and is_plot_expression(args[0])
-     and is_plot_expression(args[1]))):
+    and is_plot_expression(args[0])
+    and is_plot_expression(args[1]))):
         parser.print_usage()
         sys.exit(1)
 

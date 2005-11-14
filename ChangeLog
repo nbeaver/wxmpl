@@ -1,10 +1,14 @@
-11-11-2005  Ken McIvor  <mcivor@iit.edu>
+11-14-2005  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.3
 	* Renamed `python/' to `lib/'
 	* Fixed an incompatability with FigureCanvasWx.draw() introduced in
 	  matplotlib 0.84.
 	* Included the `plotit' script in the distribution.
 	* Updated setup.py to use metasetup.py
+	* If present in the data files, text column names may be used
+	* Empty data files are now ignored
+	* Masked arrays are now used to clamp +/- INF when calculating the column
+	  expressions, which allows vectoried calculations via Numerix
 
 07-10-2005  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.2
@@ -19,7 +23,7 @@
 	* Disabled printing under OSX.  The DPI of the printer is always being
 	  reported as 72, resulting in ugly plots.
 
-05-19-2005  Ken McIvor  <mcivor@iit.edu>
+5-19-2005  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2
 	* Added support for the wxPython printing framework via FigurePrinter and
 	  FigurePrintout.
