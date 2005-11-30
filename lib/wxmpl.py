@@ -1134,7 +1134,6 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         Called by the associated C{PlotPanelDirector} to emit a C{PointEvent}.
         """
-        print 'notify_point()'
         wx.PostEvent(self, PointEvent(self.GetId(), axes, x, y))
 
     def notify_selection(self, axes, x1, y1, x2, y2):
