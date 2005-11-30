@@ -117,7 +117,6 @@ class MyFrame(wx.Frame):
         self._replot()
 
     def _on_point(self, evt):
-        print '_on_point()'
         if self.pointButton.GetValue():
             self.pointButton.SetValue(False)
             if evt.axes is not None:
