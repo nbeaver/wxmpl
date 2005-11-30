@@ -1,0 +1,3 @@
+#!/bin/sh
+rm -rf reference/*
+xvfb-run epydoc --html -o reference -n WxMpl wxmpl

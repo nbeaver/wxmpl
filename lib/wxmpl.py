@@ -19,7 +19,7 @@ missing features in the form of a better matplolib FigureCanvas.
 LINUX_PRINTING_COMMAND = 'lpr'
 
 
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 
 
 import wx
@@ -107,6 +107,17 @@ def find_selected_axes(canvas, x1, y1, x2, y2):
     if axes is None:
         return None, None, None
 
+    xymin, xymax = limit_selection(bbox, axes)
+    xrange, yrange = get_bbox_lims(
+        inverse_transform_bbox(axes.transData, bound_vertices([xymin, xymax])))
+    return axes, xrange, yrange
+
+
+def limit_selection(bbox, axes):
+    """
+    Finds the region of a selection C{bbox} which overlaps with the supplied
+    C{axes} and returns it as the 2-tuple C{((xmin, ymin), (xmax, ymax))}.
+    """
     bxr, byr = get_bbox_lims(bbox)
     axr, ayr = get_bbox_lims(axes.bbox)
 
@@ -114,10 +125,7 @@ def find_selected_axes(canvas, x1, y1, x2, y2):
     xmax = min(bxr[1], axr[1])
     ymin = max(byr[0], ayr[0])
     ymax = min(byr[1], ayr[1])
-    xrange, yrange = get_bbox_lims(
-        inverse_transform_bbox(axes.transData,
-            bound_vertices([(xmin, ymin), (xmax, ymax)])))
-    return axes, xrange, yrange
+    return (xmin, ymin), (xmax, ymax)
 
 
 def format_coord(axes, xdata, ydata):
@@ -311,7 +319,9 @@ class PlotPanelDirector(DestructableViewMixin):
                 if self.limits.set(axes, xrange, yrange):
                     self.view.draw()
             else:
-                self.view.notify_selection(axes, x0, y0, x, y)
+                bbox = bound_vertices([(x0, y0), (x, y)])
+                (x1, y1), (x2, y2) = limit_selection(bbox, axes)
+                self.view.notify_selection(axes, x1, y1, x2, y2)
 
         if axes is None:
             view.cursor.setNormal()
@@ -920,14 +930,16 @@ class FigurePrintout(wx.Printout):
 
 EVT_POINT_ID = wx.NewId()
 
-def EVT_POINT(win, func):
+
+def EVT_POINT(win, id, func):
     """
     Register to receive wxPython C{PointEvent}s from a C{PlotPanel} or
     C{PlotFrame}.
     """
-    win.Connect(-1, -1, EVT_POINT_ID, func)
+    win.Connect(id, -1, EVT_POINT_ID, func)
 
-class PointEvent(wx.PyEvent):
+
+class PointEvent(wx.PyCommandEvent):
     """
     wxPython event emitted when a left-click-release occurs in a matplotlib
     axes of a window without an area selection.
@@ -938,29 +950,33 @@ class PointEvent(wx.PyEvent):
     @cvar xdata: axes X coordinate
     @cvar ydata: axes Y coordinate
     """
-    def __init__(self, axes, x, y):
+    def __init__(self, id, axes, x, y):
         """
         Create a new C{PointEvent} for the matplotlib coordinates C{(x, y)} of
         an C{axes}.
         """
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_POINT_ID)
+        wx.PyCommandEvent.__init__(self, EVT_POINT_ID, id)
         self.axes = axes
         self.x = x
         self.y = y
         self.xdata, self.ydata = axes.transData.inverse_xy_tup((x, y))
 
+    def Clone(self):
+        return PointEvent(self.GetId(), self.axes, self.x, self.y)
+
 
 EVT_SELECTION_ID = wx.NewId()
 
-def EVT_SELECTION(win, func):
+
+def EVT_SELECTION(win, id, func):
     """
     Register to receive wxPython C{SelectionEvent}s from a C{PlotPanel} or
     C{PlotFrame}.
     """
-    win.Connect(-1, -1, EVT_SELECTION_ID, func)
+    win.Connect(id, -1, EVT_SELECTION_ID, func)
 
-class SelectionEvent(wx.PyEvent):
+
+class SelectionEvent(wx.PyCommandEvent):
     """
     wxPython event emitted when an area selection occurs in a matplotlib axes
     of a window for which zooming has been disabled.  The selection is
@@ -977,13 +993,12 @@ class SelectionEvent(wx.PyEvent):
     @cvar x2data: axes x2 coordinate
     @cvar y2data: axes y2 coordinate
     """
-    def __init__(self, axes, x1, y1, x2, y2):
+    def __init__(self, id, axes, x1, y1, x2, y2):
         """
         Create a new C{SelectionEvent} for the area described by the rectangle
         from C{(x1, y1)} to C{(x2, y2)} in an C{axes}.
         """
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_SELECTION_ID)
+        wx.PyCommandEvent.__init__(self, EVT_SELECTION_ID, id)
         self.axes = axes
         self.x1 = x1
         self.y1 = y1
@@ -991,6 +1006,10 @@ class SelectionEvent(wx.PyEvent):
         self.y2 = y2
         self.x1data, self.y1data = axes.transData.inverse_xy_tup((x1, y1))
         self.x2data, self.y2data = axes.transData.inverse_xy_tup((x2, y2))
+
+    def Clone(self):
+        return SelectionEvent(self.GetId(), self.axes, self.x1, self.y1,
+            self.x2, self.y2)
 
 
 #
@@ -1115,14 +1134,15 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         Called by the associated C{PlotPanelDirector} to emit a C{PointEvent}.
         """
-        wx.PostEvent(self, PointEvent(axes, x, y))
+        print 'notify_point()'
+        wx.PostEvent(self, PointEvent(self.GetId(), axes, x, y))
 
     def notify_selection(self, axes, x1, y1, x2, y2):
         """
         Called by the associated C{PlotPanelDirector} to emit a
         C{SelectionEvent}.
         """
-        wx.PostEvent(self, SelectionEvent(axes, x1, y1, x2, y2))
+        wx.PostEvent(self, SelectionEvent(self.GetId(), axes, x1, y1, x2, y2))
 
     def _get_canvas_xy(self, evt):
         """
