@@ -89,7 +89,7 @@ class MyFrame(wx.Frame):
 
         axes.set_xlabel('time (s)')
         axes.set_ylabel('voltage (mV)')
-        axes.set_title('Peter Plotter Picked a Point of Pickled Plotting')
+        axes.set_title('Peter Plotter Picked a Peck of Picky Plotting')
         axes.legend()
 
         # restore the zoom limits (unless they're for an empty plot)

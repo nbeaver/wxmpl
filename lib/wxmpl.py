@@ -719,18 +719,15 @@ class FigurePrinter(DestructableViewMixin):
         """
         self.pData = printData
 
-# Disabled due to a bug in wxPython 2.4.2.4 where the page setup dialog ignores
-# the PaperId and always selects A4 by default.
-#    def pageSetup(self):
-#        psdData = wx.PageSetupDialogData()
-#        psdData.SetPaperId(self.pData.GetPaperId())
-#        psdData.SetPrintData(self.pData)
-#        psdData.EnableMargins(False)
-#
-#        dlg = wx.PageSetupDialog(self.view, psdData)
-#        if dlg.ShowModal() == wx.ID_OK:
-#            self.pData = dlg.GetPageSetupData().GetPrintData()
-#        dlg.Destroy()
+    def pageSetup(self):
+        dlg = wx.PrintDialog(self.view)
+        pdData = dlg.GetPrintDialogData()
+        pdData.SetPrintData(self.pData)
+        pdData.SetSetupDialog(True)
+
+        if dlg.ShowModal() == wx.ID_OK:
+            self.pData = pdData.GetPrintData()
+        dlg.Destroy()
 
     def previewFigure(self, figure, title=None):
         """
@@ -824,8 +821,10 @@ class FigurePrintout(wx.Printout):
         # ratio of the figure's width to its height
         if self.aspectRatio == self.ASPECT_RECTANGULAR:
             aspectRatio = 1.61803399
+        elif self.aspectRatio == self.ASPECT_SQUARE:
+            aspectRatio = 1.0
         else:
-            self.aspectRatio = self.ASPECT_SQUARE
+            raise ValueError('invalid aspect ratio')
 
         # Device context to draw the page
         dc = self.GetDC()
@@ -1261,24 +1260,23 @@ class PlotFrame(wx.Frame):
             'Save a copy of the current plot')
         wx.EVT_MENU(self, id, self.OnMenuFileSave)
 
-# See FigurePrinter.pageSetup()
-#        id = wx.NewId()
-#        menu.Append(id, 'Page Set&up...',
-#            'Set the size and margins of the printed figure')
-#        wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
+        # Printing under OSX doesn't work well because the DPI of the
+        # printer is always reported as 72.  It will be disabled until print
+        # qualities are mapped onto wx.PostScriptDC resolutions.
 
-
-        # OSX does previewing using PDFs and the Preview Application
         if not sys.platform.startswith('darwin'):
             menu.AppendSeparator()
+
+            id = wx.NewId()
+            menu.Append(id, 'Page Set&up...',
+                'Set the size and margins of the printed figure')
+            wx.EVT_MENU(self, id, self.OnMenuFilePageSetup)
 
             id = wx.NewId()
             menu.Append(id, 'Print Pre&view...',
                 'Preview the print version of the current plot')
             wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
 
-            # Printing under OSX doesn't work well because the DPI of the
-            # printer is always reported as 72.
             id = wx.NewId()
             menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
             wx.EVT_MENU(self, id, self.OnMenuFilePrint)
@@ -1338,12 +1336,11 @@ class PlotFrame(wx.Frame):
             wx.MessageBox('Could not save file: %s' % err, 'Error - plotit',
                 parent=self, style=wx.OK|wx.ICON_ERROR)
 
-# See FigurePrinter.pageSetup()
-#    def OnMenuFilePageSetup(self, evt):
-#        """
-#        Handles File->Page Setup menu events
-#        """
-#        self.printer.pageSetup()
+    def OnMenuFilePageSetup(self, evt):
+        """
+        Handles File->Page Setup menu events
+        """
+        self.printer.pageSetup()
 
     def OnMenuFilePrintPreview(self, evt):
         """

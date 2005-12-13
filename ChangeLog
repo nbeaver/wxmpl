@@ -1,3 +1,7 @@
+12-13-2005  Ken McIvor  <mcivor@iit.edu>
+	* Fixed FigurePrinter.pageSetup() so it now honors the paper size and
+	  other parameters correctly.
+
 11-30-2005  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.4
 	* Point and selection events now work properly.
