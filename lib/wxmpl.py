@@ -19,7 +19,7 @@ missing features in the form of a better matplolib FigureCanvas.
 LINUX_PRINTING_COMMAND = 'lpr'
 
 
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 
 
 import wx
@@ -168,7 +168,13 @@ class AxesLimits:
         if is_polar(axes):
             return False
 
-        self._get_history(axes).append((axes.get_xlim(), axes.get_ylim()))
+        history = self._get_history(axes)
+        if history:
+            oldRange = axes.get_xlim(), axes.get_ylim()
+        else:
+            oldRange = None, None
+
+        history.append(oldRange)
         axes.set_xlim(xrange)
         axes.set_ylim(yrange)
         return True
@@ -184,8 +190,11 @@ class AxesLimits:
             return False
         else:
             xrange, yrange = hist.pop()
-            axes.set_xlim(xrange)
-            axes.set_ylim(yrange)
+            if xrange is None and yrange is None:
+                axes.autoscale_view()
+            else:
+                axes.set_xlim(xrange)
+                axes.set_ylim(yrange)
             return True
 
 

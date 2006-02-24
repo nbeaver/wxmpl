@@ -1,6 +1,10 @@
 02-23-2006  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.5
 	* Fixed an increadibly daft bug that was reported by Philippe Dalet.
 	* Corrected a grammerical error in plotit's help message.
+	* AxesLimits.restore() now autoscales the axes when unzooming all the way
+	  out, allowing you to add lines outside the initial plot limits while
+	  zoomed in.
 
 12-13-2005  Ken McIvor  <mcivor@iit.edu>
 	* Fixed FigurePrinter.pageSetup() so it now honors the paper size and
