@@ -1151,7 +1151,7 @@ def ParseArguments(args):
        %prog [-lp] X Y FILE [FILE...]: plot the X and Y expressions for files
 
 `%prog' is a simple plotting program which can draw line plots and stripcharts
-using subset of GNUPLOT's command language.  You can also do quick plots of
+using a subset of GNUPLOT's command language.  You can also do quick plots of
 multiple data files from the command-line.'''
     VERSION = '%prog ' + __version__ + ', by Ken McIvor <mcivor@iit.edu>'
     parser = OptionParser(usage=USAGE, version=VERSION)

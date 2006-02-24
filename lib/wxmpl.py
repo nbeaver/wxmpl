@@ -1099,7 +1099,7 @@ class PlotPanel(FigureCanvasWxAgg):
         area of the canvas by left-clicking and dragging the mouse.
         """
         self.rubberband.setEnabled(state)
-        self.director.setSelectionEnabled(state)
+        self.director.setSelection(state)
 
     def set_zoom(self, state):
         """

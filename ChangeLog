@@ -1,3 +1,7 @@
+02-23-2006  Ken McIvor  <mcivor@iit.edu>
+	* Fixed an increadibly daft bug that was reported by Philippe Dalet.
+	* Corrected a grammerical error in plotit's help message.
+
 12-13-2005  Ken McIvor  <mcivor@iit.edu>
 	* Fixed FigurePrinter.pageSetup() so it now honors the paper size and
 	  other parameters correctly.
