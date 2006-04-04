@@ -32,6 +32,13 @@
 
 # ChangeLog
 #
+# 04-04-2006  Ken McIvor <mcivor@iit.edu>
+#  * Release 2.3.1
+#  * Attemped to fix a subtle race condition that caused the plot window to
+#    survive the "exit" command, hanging around at the end of MX quick scans.
+#  * Switched to using LinearLocator(5) for X and Y axis tick locations to
+#    yield nicer looking plots for the occasional corner cases (e.g. when
+#    AutoLocator gives you 9 ticks with overlapping labels).
 # 11-14-2005  Ken McIvor <mcivor@iit.edu>
 #  * Release: 2.3
 #  * Column names may be used in expressions if they are present in the files
@@ -118,7 +125,7 @@
 # 10-03-2004  Ken McIvor <mcivken@iit.edu>
 #   * release: 1.0
 
-__version__ = '2.3'
+__version__ = '2.3.1'
 
 
 import ConfigParser
@@ -321,8 +328,13 @@ class PlotDirector:
         if matplotlib.__version__ >= '0.81':
             axes.yaxis.set_major_formatter(
                 matplotlib.ticker.OldScalarFormatter())
+            axes.yaxis.set_major_locator(
+                matplotlib.ticker.LinearLocator(5))
+
             axes.xaxis.set_major_formatter(
                 matplotlib.ticker.OldScalarFormatter())
+            axes.xaxis.set_major_locator(
+                matplotlib.ticker.LinearLocator(5))
 
     def cleanup(self):
         pass
@@ -761,11 +773,8 @@ class CommandInterpreter:
 
         app = wx.GetApp()
         if app is not None:
-            frame = app.GetTopWindow()
-            if frame is not None:
-                frame.Close(True)
-                app.ProcessIdle()
-                self.hasExited = True
+            app.ExitMainLoop()
+            self.hasExited = True
         return False
 
 
