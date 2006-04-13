@@ -4,7 +4,7 @@
 # Purpose: Experiment data visualization
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2004-2005 Illinois Institute of Technology
+# Copyright 2004-2006 Illinois Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -32,6 +32,11 @@
 
 # ChangeLog
 #
+# 04-06-2006  Ken McIvor <mcivor@iit.edu>
+#  * Release 2.3.2
+#  * Had another go at shutting down cleanly after the "exit" command while in
+#    stripchart mode.
+#  * Fixed a bug in cmd_START_PLOT()'s error handling.
 # 04-04-2006  Ken McIvor <mcivor@iit.edu>
 #  * Release 2.3.1
 #  * Attemped to fix a subtle race condition that caused the plot window to
@@ -125,7 +130,7 @@
 # 10-03-2004  Ken McIvor <mcivken@iit.edu>
 #   * release: 1.0
 
-__version__ = '2.3.1'
+__version__ = '2.3.2'
 
 
 import ConfigParser
@@ -388,6 +393,12 @@ class StripChartDirector(PlotDirector):
 
         for cmd in self.queue.getAll():
             interpreter.doCommand(cmd)
+            if interpreter.hasExited:
+                self.timer.Stop()
+                try:
+                    self.inputFile.close()
+                except:
+                    pass
 
         if self.fileReader.isAlive():
             interpreter.replot()
@@ -586,7 +597,7 @@ class CommandInterpreter:
         try:
             independent_variable_count = int(args[0])
             innermost_loop_motor_index = int(args[1])
-        except (ValueError, OverflowError):
+        except (ValueError, OverflowError), e:
             print >> sys.stderr, (
                 'Error in "start_plot" statement for file %s: %s'
                 % (self.fileDesc, e))

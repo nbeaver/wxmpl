@@ -2,7 +2,7 @@
 # Purpose: painless matplotlib embedding for wxPython
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2005 Illinois Institute of Technology
+# Copyright 2005-2006 Illinois Institute of Technology
 #
 # See the file "LICENSE" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -13,13 +13,6 @@ default plotting widget lacks the capabilities necessary for interactive use.
 WxMpl (wxPython+matplotlib) is a library of components that provide these
 missing features in the form of a better matplolib FigureCanvas.
 """
-
-# If you want to use something other than `lpr' to print under linux you may
-# specify that command here.
-LINUX_PRINTING_COMMAND = 'lpr'
-
-
-__version__ = '1.2.5'
 
 
 import wx
@@ -39,8 +32,17 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
+__version__ = '1.2.7'
+
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
+
+# If you want to use something other than `lpr' to print under linux you may
+# specify that command here.
+LINUX_PRINTING_COMMAND = 'lpr'
+
+# Work around some problems with the pre-0.84 WXAgg backend
+BROKEN_WXAGG_BACKEND = matplotlib.__version__ < '0.84'
 
 
 #
@@ -470,30 +472,31 @@ class Painter(DestructableViewMixin):
         """
         if self.enabled:
             value = self.formatValue(value)
-            self._paint(value)
-            self.lastValue = value
+            self._paint(value, None)
 
-    def redraw(self):
+    def redraw(self, dc=None):
         """
         Redraw this painter's current value.
         """
         value = self.lastValue
         self.lastValue = None
-        self._paint(value)
+        self._paint(value, dc)
 
-    def clear(self):
+    def clear(self, dc=None):
         """
         Clear the painter's current value from the screen and the painter
         itself.
         """
         if self.lastValue is not None:
-            self._paint(None)
+            self._paint(None, dc)
 
-    def _paint(self, value):
+    def _paint(self, value, dc):
         """
         Draws a previously processed C{value} on this painter's window.
         """
-        dc = wx.ClientDC(self.view)
+        if dc is None:
+            dc = wx.ClientDC(self.view)
+
         dc.SetPen(self.PEN)
         dc.SetBrush(self.BRUSH)
         dc.SetFont(self.FONT)
@@ -1045,6 +1048,7 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         FigureCanvasWxAgg.__init__(self, parent, id, Figure(size, dpi))
 
+        self.insideOnPaint = False
         self.cursor = CursorChanger(self, cursor)
         self.location = LocationPainter(self, location)
         self.crosshairs = CrosshairPainter(self, crosshairs)
@@ -1055,7 +1059,31 @@ class PlotPanel(FigureCanvasWxAgg):
         self.figure.set_facecolor('white')
         self.SetBackgroundColour(wx.WHITE)
 
+        # find the toplevel parent window
+        topwin = self
+        while topwin.GetParent() is not None:
+            topwin = topwin.GetParent()
+
+        wx.EVT_ACTIVATE(topwin, self.OnActivate)
+        wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground)
         wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
+
+    def OnActivate(self, evt):
+        """
+        Handles the wxPython window activation event.
+        """
+        if not evt.GetActive():
+            self.cursor.setNormal()
+            self.location.clear()
+            self.crosshairs.clear()
+            self.rubberband.clear()
+        evt.Skip()
+
+    def OnEraseBackground(self, evt):
+        """
+        Overrides the wxPython backround repainting event to reduce flicker.
+        """
+        pass
 
     def OnDestroy(self, evt):
         """
@@ -1069,10 +1097,20 @@ class PlotPanel(FigureCanvasWxAgg):
 
     def _onPaint(self, evt):
         """
-        Overrides the C{FigureCanvasWxAgg} paint event.
+        Overrides the C{FigureCanvasWxAgg} paint event to redraw the
+        crosshairs, etc.
         """
-        if isinstance(self, FigureCanvasWxAgg):
-            FigureCanvasWxAgg._onPaint(self, evt)
+        if not isinstance(self, FigureCanvasWxAgg):
+            return
+
+        self.insideOnPaint = True
+        FigureCanvasWxAgg._onPaint(self, evt)
+        self.insideOnPaint = False
+
+        dc = wx.PaintDC(self)
+        self.location.redraw(dc)
+        self.crosshairs.redraw(dc)
+        self.rubberband.redraw(dc)
 
     def get_figure(self):
         """
@@ -1127,16 +1165,33 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         Draw the associated C{Figure} onto the screen.
         """
-        if self.director.canDraw() and isinstance(self, FigureCanvasWxAgg):
-            if '0.84' <= matplotlib.__version__:
-                FigureCanvasWxAgg.draw(self, repaint)
-            else:
-                FigureCanvasWxAgg.draw(self)
+        if (not self.director.canDraw()
+        or  not isinstance(self, FigureCanvasWxAgg)):
+            return
 
-            if repaint:
-                self.location.redraw()
-                self.crosshairs.redraw()
-                self.rubberband.redraw()
+        # Before matplotlib 0.84, FigureCanvasWxAgg.draw() always called
+        # gui_repaint(), which redrew the plot using a ClientDC.  This is
+        # a workaround that lets us repaint the plot decorations in a sane
+        # manner.
+        if BROKEN_WXAGG_BACKEND:
+            FigureCanvasAgg.draw(self)
+            s = self.tostring_rgb()
+            w = int(self.renderer.width)
+            h = int(self.renderer.height)
+            image = wx.EmptyImage(w, h)
+            image.SetData(s)
+            self.bitmap = image.ConvertToBitmap()
+
+            # Don't repaint when called by _onPaint()
+            if repaint and not self.insideOnPaint:
+                self.gui_repaint()
+        else:
+            FigureCanvasWxAgg.draw(self, repaint)
+
+        if repaint:
+            self.location.redraw()
+            self.crosshairs.redraw()
+            self.rubberband.redraw()
 
     def notify_point(self, axes, x, y):
         """
@@ -1156,7 +1211,7 @@ class PlotPanel(FigureCanvasWxAgg):
         Returns the X and Y coordinates of a wxPython event object converted to
         matplotlib canavas coordinates.
         """
-        return evt.GetX(), self.figure.bbox.height() - evt.GetY()
+        return evt.GetX(), int(self.figure.bbox.height() - evt.GetY())
 
     def _onKeyDown(self, evt):
         """

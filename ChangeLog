@@ -1,3 +1,12 @@
+04-13-2006  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.7
+	* `plotit' would occasionally hang while exiting during quickscans at APS
+	  10ID.  This should be fixed now.
+
+04-05-2006  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.6
+	* Fixed the crosshair junk that was sometimes left behind after a repaint.
+
 02-23-2006  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.5
 	* Fixed an increadibly daft bug that was reported by Philippe Dalet.
