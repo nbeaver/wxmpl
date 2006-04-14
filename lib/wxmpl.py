@@ -32,7 +32,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-__version__ = '1.2.7'
+__version__ = '1.2.8'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
@@ -1173,6 +1173,8 @@ class PlotPanel(FigureCanvasWxAgg):
         # gui_repaint(), which redrew the plot using a ClientDC.  This is
         # a workaround that lets us repaint the plot decorations in a sane
         # manner.
+
+        doRepaint = repaint and not self.insideOnPaint
         if BROKEN_WXAGG_BACKEND:
             FigureCanvasAgg.draw(self)
             s = self.tostring_rgb()
@@ -1183,12 +1185,13 @@ class PlotPanel(FigureCanvasWxAgg):
             self.bitmap = image.ConvertToBitmap()
 
             # Don't repaint when called by _onPaint()
-            if repaint and not self.insideOnPaint:
+            if doRepaint:
                 self.gui_repaint()
         else:
             FigureCanvasWxAgg.draw(self, repaint)
 
-        if repaint:
+        # Don't redraw the decorations when called by _onPaint()
+        if doRepaint:
             self.location.redraw()
             self.crosshairs.redraw()
             self.rubberband.redraw()

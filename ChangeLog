@@ -1,3 +1,7 @@
+04-14-2006  Ken McIvor  <mcivor@iit.edu>
+	* Fixed a bug in the anti-crosshair-junk logic (the decorations were being
+	  redrawn from within _onPaint())
+
 04-13-2006  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.7
 	* `plotit' would occasionally hang while exiting during quickscans at APS
