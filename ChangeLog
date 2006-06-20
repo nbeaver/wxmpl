@@ -1,6 +1,13 @@
+06-20-2006  Ken McIvor  <mcivor@iit.edu>
+	* Fixed a bug in PlotPanel's EVT_ACTIVATE registration that was reported
+	  by Andrew Jones.  PlotPanel would register with the last toplevel parent
+	  window instead of the first one, resulting in PyDeadObjectErrors.
+	* PlotPanels now unregister their EVT_ACTIVATE handlers in OnDestroy,
+	  making it possible to dynamically create and destroy them.
+
 04-14-2006  Ken McIvor  <mcivor@iit.edu>
 	* Fixed a bug in the anti-crosshair-junk logic (the decorations were being
-	  redrawn from within _onPaint())
+	  redrawn from within _onPaint()).
 
 04-13-2006  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.2.7

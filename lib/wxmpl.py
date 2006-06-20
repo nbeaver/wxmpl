@@ -1059,14 +1059,22 @@ class PlotPanel(FigureCanvasWxAgg):
         self.figure.set_facecolor('white')
         self.SetBackgroundColour(wx.WHITE)
 
-        # find the toplevel parent window
-        topwin = self
-        while topwin.GetParent() is not None:
-            topwin = topwin.GetParent()
+        # find the toplevel parent window and register an activation event
+        # handler that is keyed to the id of this PlotPanel
+        topwin = self._get_toplevel_parent()
+        topwin.Connect(-1, self.GetId(), wx.wxEVT_ACTIVATE, self.OnActivate)
 
-        wx.EVT_ACTIVATE(topwin, self.OnActivate)
         wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground)
         wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
+
+    def _get_toplevel_parent(self):
+        """
+        Returns the first toplevel parent of this window.
+        """
+        topwin = self.GetParent()
+        while not isinstance(topwin, (wx.Frame, wx.Dialog)):
+            topwin = topwin.GetParent()
+        return topwin       
 
     def OnActivate(self, evt):
         """
@@ -1094,6 +1102,10 @@ class PlotPanel(FigureCanvasWxAgg):
                 self.crosshairs, self.director]
             for obj in objects:
                 obj.destroy()
+
+            # unregister the activation event handler for this PlotPanel
+            topwin = self._get_toplevel_parent()
+            topwin.Disconnect(-1, self.GetId(), wx.wxEVT_ACTIVATE)
 
     def _onPaint(self, evt):
         """
