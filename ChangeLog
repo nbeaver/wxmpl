@@ -1,3 +1,7 @@
+08-28-2006  Ken McIvor  <mcivor@iit.edu>
+	* Release: 1.2.8
+	* Updated metasetup.py to version 1.1.
+
 06-20-2006  Ken McIvor  <mcivor@iit.edu>
 	* Fixed a bug in PlotPanel's EVT_ACTIVATE registration that was reported
 	  by Andrew Jones.  PlotPanel would register with the last toplevel parent

@@ -8,9 +8,8 @@
 #   1. Automagically translates uppercased global variables into their
 #      corresponding keyword arguments
 #   2. Manages keyword argument compatability for you (e.g. keyword arguments
-#      for setuptools are omitted when using distutils)
-#   3. Detects setuptools and uses it instead of distutils
-#   4. Adds support for "package_data" when using distutils with Python < 2.4
+#      for distutils extensions like py2exe are omitted when using distutils)
+#   3. Adds support for "package_data" when using distutils with Python < 2.4
 #
 #
 # Automatic Translation
@@ -30,42 +29,22 @@
 # Keyword Compatability
 #   Metasetup omits keyword arguments that are incompatible with your current
 #   build environment:
-#    * Python >= 2.2.3: classifiers, download_url
+#    * Python < 2.2.3: classifiers, download_url
+#
+#   Arguments for setuptools, py2app, and py2exe are omitted unless you
+#   imported them before running metasetup:
 #    * setuptools: zip_safe, install_requires, entry_points, extras_require,
 #                  setup_requires, namespace_packages, test_suite,
 #                  eager_resources
-#
-#   Arguments for py2app and py2exe are omitted unless you imported them
-#   before running metasetup:
 #    * py2app: app
 #    * py2exe: console, windows, service, com_server, zipfile
 #
 #
-# Building Extensions
-#   Setuptools monkeypatches distutils, injecting its own Extension class into
-#   distutils.core.  This makes things break if you import setuptools *after*
-#   creating instances of distutils.Extension.  Here's the workaround:
-#
-#   try:
-#       from setuptools import Extension
-#   except ImportError:
-#       from distutils.core import Extension
-#
-#
-# Requiring Setuptools
-#   If you're using setuptools-specific features to build your packages, you
-#   can tell metasetup to refuse to run without setuptools:
-#     * In `setup.py', set the global variable REQUIRE_SETUPTOOLS to True.
-#     * Set the environment variable REQUIRE_SETUPTOOLS to y, yes, on, or true.
-#       These values are case-insensitive.
-#
-#
-# Disabling Setuptools
-#   By default, metasetup favors setuptools over distutils.  However, you can
-#   force it to use distutils instead:
-#     * In `setup.py', set the global variable USE_SETUPTOOLS to False.
-#     * Set the environment variable USE_SETUPTOOLS to n, no, off, or
-#       false.  These values are case-insensitive.
+# Using distutils Extensions
+#   Metasetup can automatically load distutils extensions without requiring you
+#   to edit `setup.py'.  Extensions are loaded based on the environment
+#   variables USE_SETUPTOOLS, USE_PY2EXE, and USE_PY2APP.  To use an extension,
+#   set the corresponding environment variable USE_XYZ to "1", "y", or "yes".
 #
 #
 # Using metasetup
@@ -73,7 +52,6 @@
 #       # Example setup.py that uses metasetup
 #       NAME    = 'example'
 #       VERSION = '1.0'
-#       PACKAGE_DIR = {'': 'lib'}
 #       PY_MODULES  = ['example.py']
 #       execfile('metasetup.py')
 #
@@ -86,7 +64,7 @@
 # License Agreement for Python 2.4.
 #
 #
-# Copyright 2005 Illinois Institute of Technology
+# Copyright 2005-2006 Illinois Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -116,6 +94,14 @@
 #
 # ChangeLog
 #
+# 08-24-2006  Ken McIvor <mcivor@iit.edu>
+#  * Release: 1.1
+#  * Setuptools is no longer used by default, as it is no longer a drop-in
+#    replacement for distuils (it now attempts to check whether installation
+#    directories appear in `sys.path').
+#  * Distutils extensions can now be loaded via environment variables.
+#  * A bug in the handling of the Python 2.2.3 metadata has been fixed.
+#
 # 11-11-2005  Ken McIvor <mcivor@iit.edu>
 #  * Release: 1.0
 ################################################################################
@@ -123,6 +109,7 @@
 
 import sys
 import glob
+import os
 import os.path
 import distutils.command.build_py
 import distutils.dist
@@ -137,66 +124,56 @@ __metasetup_version__ = '1.0'
 #
 
 
-def _have_setuptools():
+def _use_distutils_extension(modname):
     """
-    Checks for the presence of the setuptools package.
-
-    Requiring Setuptools
-      If you're using setuptools-specific features to build your packages, you
-      can tell metasetup to refuse to run without setuptools:
-        * In `setup.py', set the global variable REQUIRE_SETUPTOOLS to True.
-        * Set the environment variable REQUIRE_SETUPTOOLS to y, yes, on, or
-          true.  These values are case-insensitive.
-
-    Disabling Setuptools
-      By default, metasetup favors setuptools over distutils.  However, you can
-      force it to use distutils instead:
-        * In `setup.py', set the global variable USE_SETUPTOOLS to False.
-        * Set the environment variable USE_SETUPTOOLS to n, no, off, or
-          false.  These values are case-insensitive.
+    Checks to see if `setup.py' imported the distutils extension "modname".  If
+    not, and the USE_MODNAME environment variable is set, the extension will be
+    automatically imported.
     """
-    # if it's been set, return the cached value
-    hst = getattr(_have_setuptools, 'HAVE_SETUPTOOLS', None)
-    if hst is not None:
-        return hst
-
-    true_values  = 'y', 'yes',  'on',  'true'
-    false_values = 'n', 'no',   'off', 'false'
-
-    hst = False
-    useVar    = globals().get('USE_SETUPTOOLS', True)
-    useEnvVar = os.getenv('USE_SETUPTOOLS', 'true').lower()
-
-    rst = False
-    reqVar    = globals().get('REQUIRE_SETUPTOOLS', False)
-    reqEnvVar = os.getenv('REQUIRE_SETUPTOOLS', 'false').lower()
-
-    hst = False
-    if not useVar or useEnvVar in false_values:
-        if 'setuptools' in sys.modules:
-            hst = True
-            distutils.log.warn('metasetup: ignoring USE_SETUPTOOLS '
-                '(setuptools is already loaded)')
-            _have_setuptools.HAVE_SETUPTOOLS = hst
-            return hst
-        elif reqVar or reqEnvVar in true_values:
-            distutils.log.error('metasetup: ignoring USE_SETUPTOOLS '
-                '(REQUIRE_SETUPTOOLS is true)')
+    if sys.modules.has_key(modname):
+        return True
 
     try:
-        import setuptools
-    except ImportError:
-        hst = False
+        var = os.getenv('USE_'+modname.upper(), '0').lower()
+    except:
+        return False
+
+    if var in ('1', 'y', 'yes'):
+        try:
+            __import__(modname)
+        except ImportError, e:
+            sys.stderr.write(
+                '%s: could not import the "%s" distutils extension\n'
+                % (os.path.basename(sys.argv[0]), modname))
+            sys.exit(1)
+        else:
+            return True
     else:
-        hst = True
+        return False
 
-    if not hst and (reqVar or reqEnvVar in true_values):
-        distutils.log.error('%s: this script requires setuptools to run'
-            ' (even to display help)' % os.path.basename(sys.argv[0]))
-        sys.exit(1)
 
-    _have_setuptools.HAVE_SETUPTOOLS = hst
-    return hst
+def _use_setuptools():
+    """
+    Checks if `setup.py' imported setuptools and loads it automatically if
+    the USE_SETUPTOOLS environment variable is set.
+    """
+    return _use_distutils_extension('setuptools')
+
+
+def _use_py2app():
+    """
+    Checks if `setup.py' imported py2app and loads it automatically if the
+    USE_PY2APP environment variable is set.
+    """
+    return _use_distutils_extension('py2app')
+
+
+def _use_py2exe():
+    """
+    Checks if `setup.py' imported py2exe and loads it automatically if the
+    USE_PY2EXE environment variable is set.
+    """
+    return _use_distutils_extension('py2exe')
 
 
 def _get_setup_function():
@@ -204,7 +181,7 @@ def _get_setup_function():
     Retrieve the appropriate setup() function.  Setuptools is favored over
     distutils if it is installed.
     """
-    if _have_setuptools():
+    if _use_setuptools():
         from setuptools import setup
     else:
         from distutils.core import setup
@@ -300,7 +277,7 @@ def _install_package_data_support():
         CMDCLASS = None
 
     # check for setuptools or Python >= 2.4
-    if _have_setuptools() or sys.version_info[0:2] >= (2,4):
+    if _use_setuptools() or sys.version_info[0:2] >= (2,4):
         return
 
     # prevent distutils from complaining about the package_data keyword argument
@@ -311,6 +288,38 @@ def _install_package_data_support():
         CMDCLASS = {}
     if not CMDCLASS.has_key('build_py'):
         CMDCLASS['build_py'] = _package_data_build_py
+
+
+def _fixup_extensions_for_setuptools(extensions):
+    """
+    This function replaces instances of the original distutils.Extension class
+    in the "extensions" list with instances of setuptools version.
+
+    Setuptools monkeypatches distutils.Extension to add support for extensions
+    written in Pyrex (.pyx), which leads to extreme badness in
+    distutils.build_ext if you call setup() with distutils.Extension instances.
+    """
+    import setuptools
+    for i in range(0, len(extensions)):
+        ext = extensions[i]
+        if isinstance(ext, setuptools.Extension):
+            continue
+        else:
+            extensions[i] = setuptools.Extension(
+                name=ext.name,
+                sources=ext.sources,
+                include_dirs=ext.include_dirs,
+                define_macros=ext.define_macros,
+                undef_macros=ext.undef_macros,
+                library_dirs=ext.library_dirs,
+                libraries=ext.libraries,
+                runtime_library_dirs=ext.runtime_library_dirs,
+                extra_objects=ext.extra_objects,
+                extra_compile_args=ext.extra_compile_args,
+                extra_link_args=ext.extra_link_args,
+                export_symbols=ext.export_symbols,
+                depends=ext.depends,
+                language=ext.language)
 
 
 #
@@ -368,7 +377,7 @@ if __name__ == '__main__':
     _install_package_data_support()
 
     # omit the new metadata keyword arguments for Python < 2.2.3
-    if sys.version >= '2.2.3':
+    if sys.version < '2.2.3':
         _distutils_metadata_variables = _distutils_base_metadata_variables
     else:
         _distutils_metadata_variables = (_distutils_base_metadata_variables
@@ -380,15 +389,15 @@ if __name__ == '__main__':
         + _distutils_resource_variables + _distutils_command_variables)
 
     # include the setuptools keyword arguments
-    if _have_setuptools():
+    if _use_setuptools():
         _kwd_variables += _setuptools_variables
 
     # include the py2app keyword arguments
-    if 'py2app' in sys.modules:
+    if _use_py2app():
         _kwd_variables += _py2app_variables
 
     # include the py2exe keyword arguments
-    if 'py2exe' in sys.modules:
+    if _use_py2exe:
         _kwd_variables += _py2exe_variables
 
     # build the arguments dictionary
@@ -397,6 +406,10 @@ if __name__ == '__main__':
         _kwd_value = globals().get(_kwd_name)
         if _kwd_value is not None:
             _kwd_arguments[_kwd_name.lower()] = _kwd_value
+
+    # convert distutils.Extension instances to setuptools.Extension instances
+    if _use_setuptools() and _kwd_arguments.has_key('ext_modules'):
+            _fixup_extensions_for_setuptools(_kwd_arguments['ext_modules'])
 
     # fetch and invoke setup()
     _setup_function = _get_setup_function()
