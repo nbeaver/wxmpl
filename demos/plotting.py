@@ -133,11 +133,10 @@ def plot_polar(fig):
 
     # radar green, solid grid lines
     matplotlib.rc('grid', color='#316931', linewidth=1, linestyle='-')
-    matplotlib.rc('tick', labelsize=12)
 
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8], polar=True, axisbg='#d5de9c')
     ax.plot(theta, r, color='#ee8d18', lw=3)
-    pylab.pset(ax.thetagridlabels, y=1.075) # the radius of the grid labels
+    pylab.setp(ax.thetagridlabels, y=1.075) # the radius of the grid labels
 
     ax.set_title("And there was much rejoicing!", fontsize=14)
     matplotlib.rcdefaults()
@@ -153,11 +152,10 @@ def plot_polar_subplot(fig):
 
     # radar green, solid grid lines
     matplotlib.rc('grid', color='#316931', linewidth=1, linestyle='-')
-    matplotlib.rc('tick', labelsize=12)
 
     ax = fig.add_subplot(1, 2, 1, polar=True, axisbg='#d5de9c')
     ax.plot(theta, r, color='#ee8d18', lw=3)
-    pylab.pset(ax.thetagridlabels, y=1.075) # the radius of the grid labels
+    pylab.setp(ax.thetagridlabels, y=1.075) # the radius of the grid labels
 
     ax.set_title("And there was much rejoicing!", fontsize=14)
     matplotlib.rcdefaults()

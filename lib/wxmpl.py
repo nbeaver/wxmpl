@@ -32,7 +32,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-__version__ = '1.2.8'
+__version__ = '1.2.8-dev'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
@@ -44,6 +44,8 @@ LINUX_PRINTING_COMMAND = 'lpr'
 # Work around some problems with the pre-0.84 WXAgg backend
 BROKEN_WXAGG_BACKEND = matplotlib.__version__ < '0.84'
 
+# Work around an API change in 0.90's matplotlib.axes._process_plot_var_args
+PROCESS_PLOT_ARGS_REQUIRED_AXES = matplotlib.__version__ >= '0.90'
 
 #
 # Utility functions and classes
@@ -1319,7 +1321,8 @@ class PlotFrame(wx.Frame):
 
         pData = wx.PrintData()
         pData.SetPaperId(wx.PAPER_LETTER)
-        pData.SetPrinterCommand(LINUX_PRINTING_COMMAND)
+        if callable(getattr(pData, 'SetPrinterCommand', None)):
+            pData.SetPrinterCommand(LINUX_PRINTING_COMMAND)
         self.printer = FigurePrinter(self, pData)
 
         self.create_menus()
@@ -1823,7 +1826,11 @@ class StripCharter:
         self.lines = {}
         axes = self.axes
 
-        styleGen = _process_plot_var_args()
+        if PROCESS_PLOT_ARGS_REQUIRED_AXES:
+            styleGen = _process_plot_var_args(axes)
+        else:
+            styleGen = _process_plot_var_args()
+
         for channel in self.channels:
             self._plot_channel(channel, styleGen)
 
