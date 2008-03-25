@@ -32,7 +32,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Bbox, Point, Value
 from matplotlib.transforms import bound_vertices, inverse_transform_bbox
 
-__version__ = '1.2.8-dev'
+__version__ = '1.2.9'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
