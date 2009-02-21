@@ -16,22 +16,20 @@ subdirectory.
 REQUIREMENTS
 ------------
 
-* Python 2.3.  Version 2.4 has not been tested.
+* Python 2.5 or later
     http://www.python.org
 
-* wxPython 2.4.2.4, a later 2.5 release, or 2.6.0.  Early 2.5 releases are
-  incompatible due to API changes that were later abandoned.
+* wxPython 2.6.3.2 or later
     http://www.wxpython.org
 
-* matplotlib 0.72 or above.
+* matplotlib 0.98.1 or later
     http://matplotlib.sourceforge.net
 
 
 PLATFORMS
 ---------
 
-WxMpl has been tested under Debian Stable, Debian Testing, Debian Unstable, and
-Mac OS 10.3.9.
+WxMpl has been tested under Debian GNU/Linux 5.0 "Lenny" [wxPython 2.6.3.2] and Mac OS 10.5.6 [wxPython 2.8.9.1].
 
 
 INSTALLATION
@@ -68,7 +66,7 @@ WxMpl was written by Ken McIvor <mcivor@iit.edu>
 COPYRIGHT & LICENSE
 -------------------
 
-  Copyright 2005 Illinois Institute of Technology
+  Copyright 2005-2009 Illinois Institute of Technology
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the

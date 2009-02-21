@@ -1,0 +1,454 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+ <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+ <title>Getting Started with WxMp and Matplotlibl</title>
+ <link rel="stylesheet" type="text/css" media="screen" href="css/screen.css" />
+ <link rel="stylesheet" type="text/css" media="print"  href="css/print.css" />
+</head>
+<body>
+<!-- start of Markdown-generated contents -->
+<h1>Getting Started with WxMpl and Matplotlib</h1>
+
+<p>Ken McIvor <br />
+<a href="&#109;&#97;&#105;&#x6C;&#116;o:&#x6D;&#99;ivo&#x72;&#64;&#x69;&#x69;&#116;&#46;e&#100;&#117;">&#x6D;&#99;ivo&#x72;&#64;&#x69;&#x69;&#116;&#46;e&#100;&#117;</a></p>
+
+<p>WxMpl is a library of <a href="http://www.wxpython.org/">wxPython</a> widgets which provide interactive plotting
+capabilities via the <a href="http://matplotlib.sourceforge.net/">matplotlib</a> 2D plotting library.  Although
+matplotlib excels at generating a variety of publication quality figures, its
+wxPython widgetry compares poorly with <a href="http://heim.ifi.uio.no/~hpl/Pmw.Blt/doc/">BLT</a>'s interactive features.
+WxMpl aims to remedy this situation by providing out-of-the-box support for
+basic user interactions while supporting as many of matplotlib's figures and
+features as possible.</p>
+
+<h2>Introduction</h2>
+
+<p>If you're new to Python or need to get back up to speed, I recommend you read
+the <a href="http://python.org/doc/2.3.5/tut/tut.html"><em>Python Tutorial</em></a>, the <a href="http://numeric.scipy.org/numpydoc/numdoc.htm"><em>Numerical Python
+Manual</em></a>, and the <a href="http://matplotlib.sourceforge.net/tutorial.html"><em>matplotlib tutorial</em></a> before
+diving into this tutorial: in the interest of brevity, a working understanding
+of Python, the Numerical Python extensions, and matplotlib's pylab interface is
+assumed.   That being said, busy scientists should be able to use this guide as
+a cookbook.</p>
+
+<p>This tutorial is very much so a work in progress.  At this point, matplotlib is
+discussed more than WxMpl itself.  This is in part  because the documentation
+for matplotlib's object-oriented API is difficult to wade through, and in part
+because matplotlib has many more features.  I have only had time to scratch
+the surface of matplotlib's abilities, although the <code>wxmpl-demos.py</code> script
+demonstrates some of the more complicated plots from matplotlib's collection of
+examples.  Eventually, I'll cover the different ways to use WxMpl and how to
+use stripcharting to create plots that update as their data changes.  Please
+bear with me as I keep improving this tutorial, and feel free to email me with
+any questions or problems you have in the meantime.</p>
+
+<h2>Overview of WxMpl</h2>
+
+<p>To understand WxMpl's place in the word, it is necessary to delve briefly into
+matplotlib's architecture.  Under the hood, matplotlib represents each
+separate unit-of-drawing with an instance of the <em>Figure</em> class.  Each Figure
+has a <em>FigureCanvas</em> associated with it, providing matplotlib with something to
+draw the figure onto, be it a PNG image or a wxPython window.  That's the
+pertainent the nuts and bolts covered, although the pathologically curious are
+encouraged to learn more about matplotlib's internals from the "Matplotlib API"
+chapter of <a href="http://matplotlib.sourceforge.net/users_guide_0.80.pdf"><em>The Matplotlib User's Guide</em></a>.</p>
+
+<p>In order to support as many of matplotlib's features as possible, WxMpl enters
+the scene at the lowest level possible, defining an alterative FigureCanavas
+for matplotlib to use.  As a result, figures must be constructed using
+matplotlib's object-oriented API, rather than its Matlab-compatible pylab
+interface.  This is a bit unfortunate, because the documentation of the OO
+API is sparse compared to that of the pylab interface.</p>
+
+<h2>The "Hello World" of Plotting</h2>
+
+<p>Using WxMpl in an application involves creating a PlotPanel, getting its
+associated <em>Figure</em>, and then using matplotlib's OO API to draw things.  WxMpl
+also has a <em>PlotFrame</em> and a <em>PlotApp</em>.  As its name implies, the PlotFrame is
+a top-level wxPython window that already contains a PlotPanel.  The PlotApp is
+a complete wxPython application which creates a PlotFrame for you.  All three
+of these classes have the same plotting API, so they can be used
+interchangabely.</p>
+
+<p>Our first example will demonstrate the boilerplate code used in all of the
+other examples in this tutorial.</p>
+
+<pre><code># load WxMpl's Python module
+import wxmpl
+
+# Create the PlotApp instance.
+# The title string is one of several optional arguments.
+app = wxmpl.PlotApp('WxMpl Example 1')
+
+# &lt;== This spot is where the plotting happens
+
+# Let wxPython do its thing.
+app.MainLoop()
+</code></pre>
+
+<p><strong><a href="examples/ex01.py">Listing 1</a>: Anatomy of an example</strong></p>
+
+<p>As you can see in the screen shot below, this is not a dreadfully exciting
+example: the plot window is completely empty.  This should come as no surprise,
+since this example made no effort to plot anything.</p>
+
+<p><a href="images/ex01.png"><img src="images/tn_ex01.png" alt="Figure 1" title="" /></a> <br />
+ <strong>Figure 1: Anatomy of an example</strong></p>
+
+<p>Let's proceed onward to the "Hello World" of plotting examples: the venerable
+<code>sin()</code> plot.  This example will demonstrate how to retrieve the matplotlib
+Figure object and plot <code>y = sin(pi*x)</code> in it.  This example also imports some
+functions from the <code>matplotlib.numerix</code> module.</p>
+
+<p>Numerix is a compatibility layer for Python's two array libraries,
+<a href="http://numeric.scipy.org/">NumPy</a> and <a href="http://numeric.scipy.org/">NumArray</a>, and is used in all of these examples
+to ensure cross-platform compatibility.  If you're going write applications
+that use matplotlib, you may want to consider taking advantage of Numerix for
+the same reason.</p>
+
+<p>Please note that the boilerplate code presented in Example 1 has been omitted
+here.  To run this example, paste it where the "This spot is where the plotting
+happens" line is in Example 1, or take a gander at the full source code.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin
+x = arange(0.0, 2, 0.01)
+y = sin(pi*x)
+
+### Plot it ###
+
+# All of WxMpl's plotting classes have a get_figure(),
+# which returns the associated matplotlib Figure.
+fig = app.get_figure()
+
+# Create an Axes on the Figure to plot in.
+axes = fig.gca()
+
+# Plot the function
+axes.plot(x, y)
+</code></pre>
+
+<p><strong><a href="examples/ex02.py">Listing 2</a>: A simple plot</strong></p>
+
+<p>That's more like it, eh?  You might have noticed that we're not asking a whole
+lot of matplotlib's Figure class in this example, making just one call to its
+<a href="http://matplotlib.sourceforge.net/matplotlib.figure.html#Figure-gca"><code>gca()</code></a> method.  This arrangement is typical, since Figures have
+another class to do most of the the heavy lifting for them: <em>Axes</em>.  It may
+come as no surprise, then, that <code>gca</code> is an acronym for "get current axes".</p>
+
+<p><a href="images/ex02.png"><img src="images/tn_ex02.png" alt="Figure 2" title="" /></a> <br />
+ <strong>Figure 2: A simple plot</strong></p>
+
+<p>What's all this business about Axes?  Like Matlab, matplotlib supports
+subplots, e.g. having more than one plot in a figure.  To pull this off neatly,
+responsibility for drawing these plots is delegated to the Axes, making it
+arguably the most important class in matplotlib.  As long as we're not creating
+subplots, Figure's <code>gca()</code> method will be sufficient for our purposes.</p>
+
+<h2>The Basics of Plotting</h2>
+
+<p>As you've probably guessed, <code>plot()</code> is the Axes method which defines line
+plots.  The following series of examples demonstrates how to plot multiple
+lines, display an Axes legend, use format strings, and control the properties
+of the plotted lines.</p>
+
+<p>Plotting multiple lines on an Axes is straightforward:</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin, cos, exp
+x = arange(0.0, 2, 0.01)
+y1 = sin(pi*x)
+y2 = cos(pi*x)
+y3 = exp(x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+# Call plot() once for each line
+axes.plot(x, y1)
+axes.plot(x, y2)
+axes.plot(x, y3)
+</code></pre>
+
+<p><strong><a href="examples/ex03.py">Listing 3</a>: Plotting multiple lines</strong></p>
+
+<p><a href="images/ex03.png"><img src="images/tn_ex03.png" alt="Figure 3" title="" /></a> <br />
+ <strong>Figure 3: Plotting multiple lines</strong></p>
+
+<p>Although these calls to <code>plot()</code> could be rewritten as one call, <code>axes.plot(x,
+y1, x, y2, x, y3)</code>, I recommend that you keep them separate.  Doing so
+increases readability and allows you specify different line properties for each
+line.  This is especially handy when creating an Axes legend, as the following
+example illustrates.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin, cos, exp
+x = arange(0.0, 2, 0.01)
+y1 = sin(pi*x)
+y2 = cos(pi*x)
+y3 = exp(x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+# `label' is the line property that matplotlib uses
+# to create the Axes legend.
+axes.plot(x, y1, label='sin(pi*x)')
+axes.plot(x, y2, label='cos(pi*x)')
+axes.plot(x, y3, label='exp(x)')
+# Create the legend
+axes.legend()
+</code></pre>
+
+<p><strong><a href="examples/ex04.py">Listing 4</a>: Axes legends</strong></p>
+
+<p>Like <code>plot()</code>, the <code>legend()</code> method can be called in several different ways.
+It also accepts several keyword arguments that can be used to specify certain
+legend properties.  For detailed explaination of the different ways to call
+<code>legend()</code> and what the legend properties are, please refer to the matplotlib
+<a href="http://matplotlib.sourceforge.net/matplotlib.axes.html#Axes-legend">documentation</a>. </p>
+
+<p><a href="images/ex04.png"><img src="images/tn_ex04.png" alt="Figure 4" title="" /></a> <br />
+ <strong>Figure 4: Axes legends</strong></p>
+
+<p>Now that we have some way of identifying the different lines of a plot, we can
+demonstrate how to specify different line styles by combining them into format
+strings.  Since matplotlib lets you specify the type, color, and symbol of a
+line, there are a lot of line styles; see the matplotlib
+<a href="http://matplotlib.sourceforge.net/matplotlib.axes.html#Axes-plot">documentation</a> for their descriptions.  Format strings are passed as
+the third argument to <code>plot()</code>.  If no format string has been specified,
+matplotlib cycles through a permutation of line types, colors, and symbols.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin, cos, exp
+x = arange(0.0, 2, 0.1)
+y1 = sin(pi*x)
+y2 = cos(pi*x)
+y3 = exp(x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+# solid line, blue, circle symbols
+axes.plot(x, y1, '-bo', label='-bo')
+
+# no line, red, cross symbols
+axes.plot(x, y2, 'rx', label='rx')
+
+# dashed line, black, vertical line symbols
+axes.plot(x, y3, '--k|', label='--k|')
+
+axes.legend()
+</code></pre>
+
+<p><strong><a href="examples/ex05.py">Listing 5</a>: Line styles</strong></p>
+
+<p><a href="images/ex05.png"><img src="images/tn_ex05.png" alt="Figure 5" title="" /></a> <br />
+ <strong>Figure 5: Line styles</strong></p>
+
+<p>In addition to the line type, color, and symbol, matplotlib grants control over
+several other line properties.  These properties are provided as keyword
+arguments to the <code>plot()</code> method.  Two of the most useful ones are <code>linewidth</code>
+and <code>markersize</code>, both of which take a decimal size in units of points.  The
+matplotlib tutorial <a href="http://matplotlib.sourceforge.net/tutorial.html#lineprops">describes</a> the other line properties.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin, cos, exp
+x = arange(0.0, 2, 0.1)
+y1 = sin(pi*x)
+y2 = cos(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+axes.plot(x, y1,     '--b', label='LW=1', linewidth=1)
+axes.plot(x, y1+0.5, '--r', label='LW=2', linewidth=2)
+axes.plot(x, y1+1.0, '--k', label='LW=3', linewidth=3)
+
+axes.plot(x, y2,     'xr', label='MS=3', markersize=3)
+axes.plot(x, y2+0.5, 'xk', label='MS=5', markersize=5)
+axes.plot(x, y2+1.0, 'xb', label='MS=7', markersize=7)
+</code></pre>
+
+<p><strong><a href="examples/ex06.py">Listing 6</a>: Line properties</strong></p>
+
+<p><a href="images/ex06.png"><img src="images/tn_ex06.png" alt="Figure 6" title="" /></a> <br />
+ <strong>Figure 6: Line properties</strong></p>
+
+<h2>Labels and Text</h2>
+
+<p>The Axes class has methods that allow you to specify the plot title and the
+labels of the X and Y axes:</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin
+x = arange(0.0, 2, 0.01)
+y = sin(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+axes.plot(x, y)
+
+# Label the plot
+axes.set_title('Example 7: Titles and Labels')
+axes.set_xlabel('x axis')
+axes.set_ylabel('y = sin(pi*x)')
+</code></pre>
+
+<p><strong><a href="examples/ex07.py">Listing 7</a>: Titles and labels</strong></p>
+
+<p><a href="images/ex07.png"><img src="images/tn_ex07.png" alt="Figure 7" title="" /></a>  </p>
+
+<p><strong>Figure 7: Titles and labels</strong></p>
+
+<p>These methods accept several keyword arguments that that can be used to specify
+certain text properties, such as font, weight, and size.  The matplotlib
+tutorial <a href="http://matplotlib.sourceforge.net/tutorial.html#text">documents</a> all of these properties.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin
+x = arange(0.0, 2, 0.01)
+y = sin(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+axes.plot(x, y)
+
+# Red, Bold, 12pt
+axes.set_title('Example 8: Text Properties', color='r',
+    fontweight='bold', fontsize=12)
+
+# Green, `smaller' size
+axes.set_xlabel('x axis', color='g', fontsize='smaller')
+
+# Italic
+axes.set_ylabel('y = sin(pi*x)', fontstyle='italic')
+</code></pre>
+
+<p><strong><a href="examples/ex08.py">Listing 8</a>: Text properties</strong></p>
+
+<p><a href="images/ex08.png"><img src="images/tn_ex08.png" alt="Figure 8" title="" /></a> <br />
+ <strong>Figure 8: Text properties</strong></p>
+
+<p>These methods also accept, as their optional second argument, a Python
+dictionary of <em>property</em>/<em>value</em> pairs.  Since you can also specify
+additional text properties as keyword arguments, you can effectively create
+themes:</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin
+x = arange(0.0, 2, 0.01)
+y = sin(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+axes.plot(x, y)
+
+theme = {'color': 'r', 'fontsize': 10}
+axes.set_title('Example 9: Text Themes', theme, fontsize=12)
+axes.set_xlabel('x axis', theme, color='g')
+axes.set_ylabel('y = sin(pi*x)', theme, fontstyle='italic')
+</code></pre>
+
+<p><strong><a href="examples/ex09.py">Listing 9</a>: Text themes</strong></p>
+
+<p><a href="images/ex09.png"><img src="images/tn_ex09.png" alt="Figure 9" title="" /></a> <br />
+ <strong>Figure 9: Text themes</strong></p>
+
+<p>Text may also be placed at arbitrary X, Y coordinates within a plot, using the
+Axes <code>text()</code> method.  This method accepts the same optional dictionary and keyword arguments as the title and label methods discussed above.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin
+x = arange(0.0, 2, 0.01)
+y = sin(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+axes = fig.gca()
+
+axes.plot(x, y)
+
+axes.set_title('Example 10: Text Placement')
+theme = {'fontname': 'courier', 'fontsize': 12}
+
+# text(x, y, string, [theme-dictionary,] [text properties])
+axes.text(0.5, 0, '0.5', theme, color='r')
+axes.text(1.0, 0, '1.0', theme, color='k')
+axes.text(1.5, 0, '1.5', theme, color='g')
+</code></pre>
+
+<p><strong><a href="examples/ex10.py">Listing 10</a>: Text placement</strong></p>
+
+<p><a href="images/ex10.png"><img src="images/tn_ex10.png" alt="Figure 10" title="" /></a> <br />
+ <strong>Figure 10: Text placement</strong></p>
+
+<h2>Subplots</h2>
+
+<p>As mentioned earlier, matplotlib has the ability to display subplots, drawing
+multiple Axes on a single figure.  Instead of using the Figure's <code>gca()</code> method
+to get the Axes to plot with, the <code>add_subplot()</code> method is used to add create
+each Axes.  This method takes three arguments: the desired number of subplots,
+the row of this Axes, and the column of this Axes.  The rows and columns are
+numbered from one.</p>
+
+<pre><code>### Create the data to plot ###
+
+from matplotlib.numerix import arange, pi, sin, cos
+x = arange(0.0, 2, 0.01)
+y1 = sin(pi*x)
+y2 = cos(pi*x)
+
+### Plot it ###
+
+fig = app.get_figure()
+
+# Create the subplot Axes
+axes1 = fig.add_subplot(2, 1, 1)
+axes2 = fig.add_subplot(2, 1, 2)
+
+axes1.plot(x, y1)
+axes2.plot(x, y2)
+
+# Subplots must be labeled carefully, since labels
+# can be accidentally hidden by other subplots
+axes1.set_title('Example 11: Subplots')
+axes1.set_ylabel('y = sin(pi*x)')
+
+axes2.set_xlabel('x axis')
+axes2.set_ylabel('y = cos(pi*x)')
+</code></pre>
+
+<p><strong><a href="examples/ex11.py">Listing 11</a>: Subplots</strong></p>
+
+<p><a href="images/ex11.png"><img src="images/tn_ex11.png" alt="Figure 11" title="" /></a> <br />
+ <strong>Figure 11: Subplots</strong></p>
+<!-- end of Markdown-generated contents -->
+</body>
+</html>

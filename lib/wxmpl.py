@@ -1,8 +1,7 @@
-# Name: wxmpl
 # Purpose: painless matplotlib embedding for wxPython
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2005-2006 Illinois Institute of Technology
+# Copyright 2005-2009 Illinois Institute of Technology
 #
 # See the file "LICENSE" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -23,53 +22,59 @@ import weakref
 import matplotlib
 matplotlib.use('WXAgg')
 import matplotlib.numerix as Numerix
-from matplotlib.axes import PolarAxes, _process_plot_var_args
+from matplotlib.axes import _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg, RendererAgg
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
-from matplotlib.transforms import Bbox, Point, Value
-from matplotlib.transforms import bound_vertices, inverse_transform_bbox
+from matplotlib.projections.polar import PolarAxes
+from matplotlib.transforms import Bbox
 
-__version__ = '1.2.9'
+__version__ = '1.3.0'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
-    'FigurePrinter', 'EVT_POINT', 'EVT_SELECTION']
+    'FigurePrinter', 'PointEvent', 'EVT_POINT', 'SelectionEvent',
+    'EVT_SELECTION']
 
-# If you want to use something other than `lpr' to print under linux you may
-# specify that command here.
-LINUX_PRINTING_COMMAND = 'lpr'
+# If you are using wxGtk without libgnomeprint and want to use something other
+# than `lpr' to print you will have to specify that command here.
+POSTSCRIPT_PRINTING_COMMAND = 'lpr'
 
-# Work around some problems with the pre-0.84 WXAgg backend
-BROKEN_WXAGG_BACKEND = matplotlib.__version__ < '0.84'
+# Between 0.98.1 and 0.98.3rc there were some significant API changes:
+#   * FigureCanvasWx.draw(repaint=True) became draw(drawDC=None)
+#   * The following events were added:
+#       - figure_enter_event
+#       - figure_leave_event
+#       - axes_enter_event
+#       - axes_leave_event
+MATPLOTLIB_0_98_3 = '0.98.3' <= matplotlib.__version__
 
-# Work around an API change in 0.90's matplotlib.axes._process_plot_var_args
-PROCESS_PLOT_ARGS_REQUIRED_AXES = matplotlib.__version__ >= '0.90'
 
 #
 # Utility functions and classes
 #
 
-def is_polar(axes):
+def invert_point(x, y, transform):
     """
-    Returns a boolean indicating if C{axes} is a polar axes.
+    Returns a coordinate inverted by the specificed C{Transform}.
     """
-    return isinstance(axes, PolarAxes)
+    return transform.inverted().transform_point((x, y))
 
 
 def find_axes(canvas, x, y):
     """
-    Finds the C{Axes} within a matplotlib C{FigureCanvas} contains the canavs
+    Finds the C{Axes} within a matplotlib C{FigureCanvas} contains the canvas
     coordinates C{(x, y)} and returns that axes and the corresponding data
     coordinates C{xdata, ydata} as a 3-tuple.
 
     If no axes contains the specified point a 3-tuple of C{None} is returned.
     """
+    evt = matplotlib.backend_bases.MouseEvent('', canvas, x, y)
 
     axes = None
     for a in canvas.get_figure().get_axes():
-        if a.in_axes(x, y):
+        if a.in_axes(evt):
             if axes is None:
                 axes = a
             else:
@@ -78,7 +83,7 @@ def find_axes(canvas, x, y):
     if axes is None:
         return None, None, None
 
-    xdata, ydata = axes.transData.inverse_xy_tup((x, y))
+    xdata, ydata = invert_point(x, y, axes.transData)
     return axes, xdata, ydata
 
 
@@ -86,7 +91,9 @@ def get_bbox_lims(bbox):
     """
     Returns the boundaries of the X and Y intervals of a C{Bbox}.
     """
-    return bbox.intervalx().get_bounds(), bbox.intervaly().get_bounds()
+    p0 = bbox.min
+    p1 = bbox.max
+    return (p0[0], p1[0]), (p0[1], p1[1])
 
 
 def find_selected_axes(canvas, x1, y1, x2, y2):
@@ -99,7 +106,7 @@ def find_selected_axes(canvas, x1, y1, x2, y2):
     overlaps, a 3-tuple of C{None}s is returned.
     """
     axes = None
-    bbox = bound_vertices([(x1, y1), (x2, y2)])
+    bbox = Bbox.from_extents(x1, y1, x2, y2)
 
     for a in canvas.get_figure().get_axes():
         if bbox.overlaps(a.bbox):
@@ -111,16 +118,16 @@ def find_selected_axes(canvas, x1, y1, x2, y2):
     if axes is None:
         return None, None, None
 
-    xymin, xymax = limit_selection(bbox, axes)
+    x1, y1, x2, y2 = limit_selection(bbox, axes)
     xrange, yrange = get_bbox_lims(
-        inverse_transform_bbox(axes.transData, bound_vertices([xymin, xymax])))
+        Bbox.from_extents(x1, y1, x2, y2).inverse_transformed(axes.transData))
     return axes, xrange, yrange
 
 
 def limit_selection(bbox, axes):
     """
     Finds the region of a selection C{bbox} which overlaps with the supplied
-    C{axes} and returns it as the 2-tuple C{((xmin, ymin), (xmax, ymax))}.
+    C{axes} and returns it as the 4-tuple C{(xmin, ymin, xmax, ymax)}.
     """
     bxr, byr = get_bbox_lims(bbox)
     axr, ayr = get_bbox_lims(axes.bbox)
@@ -129,7 +136,7 @@ def limit_selection(bbox, axes):
     xmax = min(bxr[1], axr[1])
     ymin = max(byr[0], ayr[0])
     ymax = min(byr[1], ayr[1])
-    return (xmin, ymin), (xmax, ymax)
+    return xmin, ymin, xmax, ymax
 
 
 def format_coord(axes, xdata, ydata):
@@ -146,8 +153,16 @@ class AxesLimits:
     Alters the X and Y limits of C{Axes} objects while maintaining a history of
     the changes.
     """
-    def __init__(self):
+    def __init__(self, autoscaleUnzoom):
+        self.autoscaleUnzoom = autoscaleUnzoom
         self.history = weakref.WeakKeyDictionary()
+
+    def setAutoscaleUnzoom(self, state):
+        """
+        Enable or disable autoscaling the axes as a result of zooming all the
+        way back out.
+        """
+        self.limits.setAutoscaleUnzoom(state)
 
     def _get_history(self, axes):
         """
@@ -169,15 +184,14 @@ class AxesLimits:
         axes should be redraw is returned, because polar axes cannot have
         their limits changed sensibly.
         """
-        if is_polar(axes):
+        if not axes.can_zoom():
             return False
 
-        history = self._get_history(axes)
-        if history:
-            oldRange = axes.get_xlim(), axes.get_ylim()
-        else:
-            oldRange = None, None
+        # The axes limits must be converted to tuples because MPL 0.98.1
+        # returns the underlying array objects
+        oldRange = tuple(axes.get_xlim()), tuple(axes.get_ylim())
 
+        history = self._get_history(axes)
         history.append(oldRange)
         axes.set_xlim(xrange)
         axes.set_ylim(yrange)
@@ -189,36 +203,24 @@ class AxesLimits:
         boolean indicating whether or not the axes should be redraw is
         returned.
         """
-        hist = self._get_history(axes)
-        if not hist:
+        history = self._get_history(axes)
+        if not history:
             return False
+
+        xrange, yrange = history.pop()
+        if self.autoscaleUnzoom and not len(history):
+            axes.autoscale_view()
         else:
-            xrange, yrange = hist.pop()
-            if xrange is None and yrange is None:
-                axes.autoscale_view()
-            else:
-                axes.set_xlim(xrange)
-                axes.set_ylim(yrange)
-            return True
-
-
-class DestructableViewMixin:
-    """
-    Utility class to break the circular reference between an object and its
-    associated "view".
-    """
-    def destroy(self):
-        """
-        Sets this object's C{view} attribute to C{None}.
-        """
-        self.view = None
+            axes.set_xlim(xrange)
+            axes.set_ylim(yrange)
+        return True
 
 
 #
 # Director of the matplotlib canvas
 #
 
-class PlotPanelDirector(DestructableViewMixin):
+class PlotPanelDirector:
     """
     Encapsulates all of the user-interaction logic required by the
     C{PlotPanel}, following the Humble Dialog Box pattern proposed by Michael
@@ -226,12 +228,11 @@ class PlotPanelDirector(DestructableViewMixin):
     U{http://www.objectmentor.com/resources/articles/TheHumbleDialogBox.pdf}
     """
 
-    # TODO: merge all of the self.view.XYZ.something() methods into
-    #       accessor methods of the PlotPanel (Law of Demeter fixes).
-    # TODO: make `rightClickUnzoom' an option on PlotPanel, PlotFrame, etc
-    # TODO: add a programmatic interface to zooming
+    # TODO: add a programmatic interface to zooming and user interactions
+    # TODO: full support for MPL events
 
-    def __init__(self, view, zoom=True, selection=True, rightClickUnzoom=True):
+    def __init__(self, view, zoom=True, selection=True, rightClickUnzoom=True,
+      autoscaleUnzoom=True):
         """
         Create a new director for the C{PlotPanel} C{view}.  The keyword
         arguments C{zoom} and C{selection} have the same meanings as for
@@ -241,7 +242,7 @@ class PlotPanelDirector(DestructableViewMixin):
         self.zoomEnabled = zoom
         self.selectionEnabled = selection
         self.rightClickUnzoom = rightClickUnzoom
-        self.limits = AxesLimits()
+        self.limits = AxesLimits(autoscaleUnzoom)
         self.leftButtonPoint = None
 
     def setSelection(self, state):
@@ -256,6 +257,13 @@ class PlotPanelDirector(DestructableViewMixin):
         """
         self.zoomEnabled = state
 
+    def setAutoscaleUnzoom(self, state):
+        """
+        Enable or disable autoscaling the axes as a result of zooming all the
+        way back out.
+        """
+        self.limits.setAutoscaleUnzoom(state)
+
     def setRightClickUnzoom(self, state):
         """
         Enable or disable unzooming as a result of right-clicking.
@@ -264,7 +272,8 @@ class PlotPanelDirector(DestructableViewMixin):
 
     def canDraw(self):
         """
-        Returns a boolean indicating whether or not the plot may be redrawn.
+        Indicates if plot may be not redrawn due to the presence of a selection
+        box.
         """
         return self.leftButtonPoint is None
 
@@ -297,7 +306,7 @@ class PlotPanelDirector(DestructableViewMixin):
         view = self.view
         axes, xdata, ydata = find_axes(view, x, y)
 
-        if self.selectionEnabled and not is_polar(axes):
+        if axes is not None and self.selectionEnabled and axes.can_zoom():
             view.cursor.setCross()
             view.crosshairs.clear()
 
@@ -327,18 +336,18 @@ class PlotPanelDirector(DestructableViewMixin):
         axes, xrange, yrange = find_selected_axes(view, x0, y0, x, y)
 
         if axes is not None:
-            xdata, ydata = axes.transData.inverse_xy_tup((x, y))
+            xdata, ydata = invert_point(x, y, axes.transData)
             if self.zoomEnabled:
                 if self.limits.set(axes, xrange, yrange):
                     self.view.draw()
             else:
-                bbox = bound_vertices([(x0, y0), (x, y)])
-                (x1, y1), (x2, y2) = limit_selection(bbox, axes)
+                bbox = Bbox.from_extents(x0, y0, x, y)
+                x1, y1, x2, y2 = limit_selection(bbox, axes)
                 self.view.notify_selection(axes, x1, y1, x2, y2)
 
         if axes is None:
             view.cursor.setNormal()
-        elif is_polar(axes):
+        elif not axes.can_zoom():
             view.cursor.setNormal()
             view.location.set(format_coord(axes, xdata, ydata))
         else:
@@ -377,8 +386,8 @@ class PlotPanelDirector(DestructableViewMixin):
         else:
             if axes is None:
                 self.canvasMouseMotion(evt, x, y)
-            elif is_polar(axes):
-                self.polarAxesMouseMotion(evt, x, y, axes, xdata, ydata)
+            elif not axes.can_zoom():
+                self.unzoomableAxesMouseMotion(evt, x, y, axes, xdata, ydata)
             else:
                 self.axesMouseMotion(evt, x, y, axes, xdata, ydata)
 
@@ -413,9 +422,10 @@ class PlotPanelDirector(DestructableViewMixin):
         view.crosshairs.set(x, y)
         view.location.set(format_coord(axes, xdata, ydata))
 
-    def polarAxesMouseMotion(self, evt, x, y, axes, xdata, ydata):
+    def unzoomableAxesMouseMotion(self, evt, x, y, axes, xdata, ydata):
         """
-        Handles wxPython mouse motion events that occur over a polar axes.
+        Handles wxPython mouse motion events that occur over an axes that does
+        not support zooming.
         """
         view = self.view
         view.cursor.setNormal()
@@ -426,7 +436,7 @@ class PlotPanelDirector(DestructableViewMixin):
 # Components used by the PlotPanel
 #
 
-class Painter(DestructableViewMixin):
+class Painter:
     """
     Painters encapsulate the mechanics of drawing some value in a wxPython
     window and erasing it.  Subclasses override template methods to process
@@ -598,7 +608,7 @@ class CrosshairPainter(Painter):
         Converts the C{(X, Y)} mouse coordinates from matplotlib to wxPython.
         """
         x, y = value
-        return int(x), int(self.view.get_figure().bbox.height() - y)
+        return int(x), int(self.view.get_figure().bbox.height - y)
 
     def drawValue(self, dc, value):
         """
@@ -627,7 +637,7 @@ class RubberbandPainter(Painter):
         wxPython.
         """
         x1, y1, x2, y2 = value
-        height = self.view.get_figure().bbox.height()
+        height = self.view.get_figure().bbox.height
         y1 = height - y1
         y2 = height - y2
         if x2 < x1: x1, x2 = x2, x1
@@ -649,7 +659,7 @@ class RubberbandPainter(Painter):
         dc.DrawRectangle(*value)
 
 
-class CursorChanger(DestructableViewMixin):
+class CursorChanger:
     """
     Manages the current cursor of a wxPython window, allowing it to be switched
     between a normal arrow and a square cross.
@@ -696,13 +706,47 @@ class CursorChanger(DestructableViewMixin):
 # Printing Framework
 #
 
-# TODO: Map print quality settings onto PostScript resolutions automatically.
-#       For now, it's set to something reasonable to work around the fact that
-#       it defaults to `72' rather than `720' under wxPython 2.4.2.4
-wx.PostScriptDC_SetResolution(300)
+# PostScript resolutions for the various WX print qualities
+PS_DPI_HIGH_QUALITY   = 600
+PS_DPI_MEDIUM_QUALITY = 300
+PS_DPI_LOW_QUALITY    = 150
+PS_DPI_DRAFT_QUALITY  = 72
 
 
-class FigurePrinter(DestructableViewMixin):
+def update_postscript_resolution(printData):
+    """
+    Sets the default wx.PostScriptDC resolution from a wx.PrintData's quality
+    setting.
+
+    This is a workaround for WX ignoring the quality setting and defaulting to
+    72 DPI.  Unfortunately wx.Printout.GetDC() returns a wx.DC object instead
+    of the actual class, so it's impossible to set the resolution on the DC
+    itself.
+
+    Even more unforuntately, printing with libgnomeprint appears to always be
+    stuck at 72 DPI.
+    """
+    if not callable(getattr(wx, 'PostScriptDC_SetResolution', None)):
+        return
+
+    quality = printData.GetQuality()
+    if quality > 0:
+        dpi = quality
+    elif quality == wx.PRINT_QUALITY_HIGH:
+        dpi = PS_DPI_HIGH_QUALITY
+    elif quality == wx.PRINT_QUALITY_MEDIUM:
+        dpi = PS_DPI_MEDIUM_QUALITY
+    elif quality == wx.PRINT_QUALITY_LOW:
+        dpi = PS_DPI_LOW_QUALITY
+    elif quality == wx.PRINT_QUALITY_DRAFT:
+        dpi = PS_DPI_DRAFT_QUALITY
+    else:
+        dpi = PS_DPI_HIGH_QUALITY
+ 
+    wx.PostScriptDC_SetResolution(dpi)
+
+
+class FigurePrinter:
     """
     Provides a simplified interface to the wxPython printing framework that's
     designed for printing matplotlib figures.
@@ -717,9 +761,9 @@ class FigurePrinter(DestructableViewMixin):
         self.view = view
 
         if printData is None:
-            self.pData = wx.PrintData()
-        else:
-            self.pData = printData
+            printData = wx.PrintData()
+
+        self.setPrintData(printData)
 
     def getPrintData(self):
         """
@@ -732,15 +776,15 @@ class FigurePrinter(DestructableViewMixin):
         Use the printer settings in C{printData}.
         """
         self.pData = printData
+        update_postscript_resolution(self.pData)
 
     def pageSetup(self):
         dlg = wx.PrintDialog(self.view)
         pdData = dlg.GetPrintDialogData()
         pdData.SetPrintData(self.pData)
-        pdData.SetSetupDialog(True)
 
         if dlg.ShowModal() == wx.ID_OK:
-            self.pData = pdData.GetPrintData()
+            self.setPrintData(pdData.GetPrintData())
         dlg.Destroy()
 
     def previewFigure(self, figure, title=None):
@@ -776,7 +820,7 @@ class FigurePrinter(DestructableViewMixin):
         printer = wx.Printer(pdData)
         fpo = FigurePrintout(figure, title)
         if printer.Print(self.view, fpo, True):
-            self.pData = pdData.GetPrintData()
+            self.setPrintData(pdData.GetPrintData())
 
 
 class FigurePrintout(wx.Printout):
@@ -804,7 +848,7 @@ class FigurePrintout(wx.Printout):
 
         if size is None:
             size = 100
-        elif size < 0 or size > 100:
+        elif size < 1 or size > 100:
             raise ValueError('invalid figure size')
         self.size = size
 
@@ -822,11 +866,18 @@ class FigurePrintout(wx.Printout):
         Overrides wx.Printout.GetPageInfo() to provide the printing framework
         with the number of pages in this print job.
         """
-        return (0, 1, 1, 1)
+        return (1, 1, 1, 1)
+
+    def HasPage(self, pageNumber):
+        """
+        Overrides wx.Printout.GetPageInfo() to tell the printing framework
+        of the specified page exists.
+        """
+        return pageNumber == 1
 
     def OnPrintPage(self, pageNumber):
         """
-        Overrides wx.Printout.OnPrintPage to render the matplotlib figure to
+        Overrides wx.Printout.OnPrintPage() to render the matplotlib figure to
         a printing device context.
         """
         # % of printable area to use
@@ -865,7 +916,6 @@ class FigurePrintout(wx.Printout):
         hPg = hPg_Px / PPI_P
 
         # minimum margins (inches)
-        # TODO: make these arguments to __init__()
         wM = 0.75
         hM = 0.75
 
@@ -912,24 +962,24 @@ class FigurePrintout(wx.Printout):
         """
         figure = self.figure
 
-        old_dpi = figure.dpi.get()
-        figure.dpi.set(dpi)
-        old_width = figure.figwidth.get()
-        figure.figwidth.set(wFig)
-        old_height = figure.figheight.get()
-        figure.figheight.set(hFig)
+        old_dpi = figure.dpi
+        figure.dpi = dpi
+        old_width = figure.get_figwidth()
+        figure.set_figwidth(wFig)
+        old_height = figure.get_figheight()
+        figure.set_figheight(hFig)
         old_frameon = figure.frameon
         figure.frameon = False
 
-        wFig_Px = int(figure.bbox.width())
-        hFig_Px = int(figure.bbox.height())
+        wFig_Px = int(figure.bbox.width)
+        hFig_Px = int(figure.bbox.height)
 
-        agg = RendererAgg(wFig_Px, hFig_Px, Value(dpi))
+        agg = RendererAgg(wFig_Px, hFig_Px, dpi)
         figure.draw(agg)
 
-        figure.dpi.set(old_dpi)
-        figure.figwidth.set(old_width)
-        figure.figheight.set(old_height)
+        figure.dpi = old_dpi
+        figure.set_figwidth(old_width)
+        figure.set_figheight(old_height)
         figure.frameon = old_frameon
 
         image = wx.EmptyImage(wFig_Px, hFig_Px)
@@ -972,7 +1022,7 @@ class PointEvent(wx.PyCommandEvent):
         self.axes = axes
         self.x = x
         self.y = y
-        self.xdata, self.ydata = axes.transData.inverse_xy_tup((x, y))
+        self.xdata, self.ydata = invert_point(x, y, axes.transData)
 
     def Clone(self):
         return PointEvent(self.GetId(), self.axes, self.x, self.y)
@@ -1017,8 +1067,8 @@ class SelectionEvent(wx.PyCommandEvent):
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
-        self.x1data, self.y1data = axes.transData.inverse_xy_tup((x1, y1))
-        self.x2data, self.y2data = axes.transData.inverse_xy_tup((x2, y2))
+        self.x1data, self.y1data = invert_point(x1, y1, axes.transData)
+        self.x2data, self.y2data = invert_point(x2, y2, axes.transData)
 
     def Clone(self):
         return SelectionEvent(self.GetId(), self.axes, self.x1, self.y1,
@@ -1034,7 +1084,8 @@ class PlotPanel(FigureCanvasWxAgg):
     A matplotlib canvas suitable for embedding in wxPython applications.
     """
     def __init__(self, parent, id, size=(6.0, 3.70), dpi=96, cursor=True,
-     location=True, crosshairs=True, selection=True, zoom=True):
+     location=True, crosshairs=True, selection=True, zoom=True,
+     autoscaleUnzoom=True):
         """
         Creates a new PlotPanel window that is the child of the wxPython window
         C{parent} with the wxPython identifier C{id}.
@@ -1045,8 +1096,9 @@ class PlotPanel(FigureCanvasWxAgg):
         C{(width, height)}.  C{dpi} is the dots-per-inch of the figure.
 
         The keyword arguments C{cursor}, C{location}, C{crosshairs},
-        C{selection}, and C{zoom} enable or disable various user interaction
-        features that are descibed in their associated C{set()} methods.
+        C{selection}, C{zoom}, and C{autoscaleUnzoom} enable or disable various
+        user interaction features that are descibed in their associated
+        C{set()} methods.
         """
         FigureCanvasWxAgg.__init__(self, parent, id, Figure(size, dpi))
 
@@ -1055,7 +1107,9 @@ class PlotPanel(FigureCanvasWxAgg):
         self.location = LocationPainter(self, location)
         self.crosshairs = CrosshairPainter(self, crosshairs)
         self.rubberband = RubberbandPainter(self, selection)
-        self.director = PlotPanelDirector(self, zoom, selection)
+        rightClickUnzoom = True # for now this is default behavior
+        self.director = PlotPanelDirector(self, zoom, selection,
+            rightClickUnzoom, autoscaleUnzoom)
 
         self.figure.set_edgecolor('black')
         self.figure.set_facecolor('white')
@@ -1076,6 +1130,7 @@ class PlotPanel(FigureCanvasWxAgg):
         topwin = self.GetParent()
         while not isinstance(topwin, (wx.Frame, wx.Dialog)):
             topwin = topwin.GetParent()
+            assert window is not None
         return topwin       
 
     def OnActivate(self, evt):
@@ -1100,11 +1155,6 @@ class PlotPanel(FigureCanvasWxAgg):
         Handles the wxPython window destruction event.
         """
         if self.GetId() == evt.GetEventObject().GetId():
-            objects = [self.cursor, self.location, self.rubberband,
-                self.crosshairs, self.director]
-            for obj in objects:
-                obj.destroy()
-
             # unregister the activation event handler for this PlotPanel
             topwin = self._get_toplevel_parent()
             topwin.Disconnect(-1, self.GetId(), wx.wxEVT_ACTIVATE)
@@ -1114,6 +1164,7 @@ class PlotPanel(FigureCanvasWxAgg):
         Overrides the C{FigureCanvasWxAgg} paint event to redraw the
         crosshairs, etc.
         """
+        # avoid wxPyDeadObject errors
         if not isinstance(self, FigureCanvasWxAgg):
             return
 
@@ -1169,43 +1220,36 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         self.director.setZoomEnabled(state)
 
+    def set_autoscale_unzoom(self, state):
+        """
+        Enable or disable automatic view rescaling when the user zooms out to
+        the initial figure.
+        """
+        self.director.setAutoscaleUnzoom(state)
+
     def zoomed(self, axes):
         """
         Returns a boolean indicating whether or not the C{axes} is zoomed in.
         """
         return self.director.zoomed(axes)
 
-    def draw(self, repaint=True):
+    def draw(self, **kwds):
         """
         Draw the associated C{Figure} onto the screen.
         """
+        # don't redraw if the left mouse button is down and avoid
+        # wxPyDeadObject errors
         if (not self.director.canDraw()
         or  not isinstance(self, FigureCanvasWxAgg)):
             return
 
-        # Before matplotlib 0.84, FigureCanvasWxAgg.draw() always called
-        # gui_repaint(), which redrew the plot using a ClientDC.  This is
-        # a workaround that lets us repaint the plot decorations in a sane
-        # manner.
-
-        doRepaint = repaint and not self.insideOnPaint
-        if BROKEN_WXAGG_BACKEND:
-            FigureCanvasAgg.draw(self)
-            s = self.tostring_rgb()
-            w = int(self.renderer.width)
-            h = int(self.renderer.height)
-            image = wx.EmptyImage(w, h)
-            image.SetData(s)
-            self.bitmap = image.ConvertToBitmap()
-
-            # Don't repaint when called by _onPaint()
-            if doRepaint:
-                self.gui_repaint()
+        if MATPLOTLIB_0_98_3:
+            FigureCanvasWxAgg.draw(self, kwds.get('drawDC', None))
         else:
-            FigureCanvasWxAgg.draw(self, repaint)
+            FigureCanvasWxAgg.draw(self, kwds.get('repaint', True))
 
         # Don't redraw the decorations when called by _onPaint()
-        if doRepaint:
+        if not self.insideOnPaint:
             self.location.redraw()
             self.crosshairs.redraw()
             self.rubberband.redraw()
@@ -1228,7 +1272,7 @@ class PlotPanel(FigureCanvasWxAgg):
         Returns the X and Y coordinates of a wxPython event object converted to
         matplotlib canavas coordinates.
         """
-        return evt.GetX(), int(self.figure.bbox.height() - evt.GetY())
+        return evt.GetX(), int(self.figure.bbox.height - evt.GetY())
 
     def _onKeyDown(self, evt):
         """
@@ -1300,10 +1344,11 @@ class PlotFrame(wx.Frame):
     ABOUT_TITLE = 'About wxmpl.PlotFrame'
     ABOUT_MESSAGE = ('wxmpl.PlotFrame %s\n' %  __version__
         + 'Written by Ken McIvor <mcivor@iit.edu>\n'
-        + 'Copyright 2005 Illinois Institute of Technology')
+        + 'Copyright 2005-2009 Illinois Institute of Technology')
 
     def __init__(self, parent, id, title, size=(6.0, 3.7), dpi=96, cursor=True,
-     location=True, crosshairs=True, selection=True, zoom=True, **kwds):
+     location=True, crosshairs=True, selection=True, zoom=True,
+     autoscaleUnzoom=True, **kwds):
         """
         Creates a new PlotFrame top-level window that is the child of the
         wxPython window C{parent} with the wxPython identifier C{id} and the
@@ -1322,7 +1367,7 @@ class PlotFrame(wx.Frame):
         pData = wx.PrintData()
         pData.SetPaperId(wx.PAPER_LETTER)
         if callable(getattr(pData, 'SetPrinterCommand', None)):
-            pData.SetPrinterCommand(LINUX_PRINTING_COMMAND)
+            pData.SetPrinterCommand(POSTSCRIPT_PRINTING_COMMAND)
         self.printer = FigurePrinter(self, pData)
 
         self.create_menus()
@@ -1330,8 +1375,6 @@ class PlotFrame(wx.Frame):
         sizer.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
         self.SetSizer(sizer)
         self.Fit()
-
-        wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
 
     def create_menus(self):
         mainMenu = wx.MenuBar()
@@ -1342,13 +1385,9 @@ class PlotFrame(wx.Frame):
             'Save a copy of the current plot')
         wx.EVT_MENU(self, id, self.OnMenuFileSave)
 
-        # Printing under OSX doesn't work well because the DPI of the
-        # printer is always reported as 72.  It will be disabled until print
-        # qualities are mapped onto wx.PostScriptDC resolutions.
+        menu.AppendSeparator()
 
-        if not sys.platform.startswith('darwin'):
-            menu.AppendSeparator()
-
+        if wx.Platform != '__WXMAC__':
             id = wx.NewId()
             menu.Append(id, 'Page Set&up...',
                 'Set the size and margins of the printed figure')
@@ -1359,9 +1398,9 @@ class PlotFrame(wx.Frame):
                 'Preview the print version of the current plot')
             wx.EVT_MENU(self, id, self.OnMenuFilePrintPreview)
 
-            id = wx.NewId()
-            menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
-            wx.EVT_MENU(self, id, self.OnMenuFilePrint)
+        id = wx.NewId()
+        menu.Append(id, '&Print...\tCtrl+P', 'Print the current plot')
+        wx.EVT_MENU(self, id, self.OnMenuFilePrint)
 
         menu.AppendSeparator()
 
@@ -1379,10 +1418,6 @@ class PlotFrame(wx.Frame):
 
         mainMenu.Append(menu, '&Help')
         self.SetMenuBar(mainMenu)
-
-    def OnDestroy(self, evt):
-        if self.GetId() == evt.GetEventObject().GetId():
-            self.printer.destroy()
 
     def OnMenuFileSave(self, evt):
         """
@@ -1490,6 +1525,13 @@ class PlotFrame(wx.Frame):
         zooming out again when the user right-clicks.
         """
         self.panel.set_zoom(state)
+
+    def set_autoscale_unzoom(self, state):
+        """
+        Enable or disable automatic view rescaling when the user zooms out to
+        the initial figure.
+        """
+        self.panel.set_autoscale_unzoom(state)
 
     def draw(self):
         """
@@ -1767,7 +1809,7 @@ def make_bbox(X, Y):
         y1 = min(Y)
         y2 = max(Y)
 
-    return Bbox(Point(Value(x1), Value(y1)), Point(Value(x2), Value(y2)))
+    return Bbox.from_extents(x1, y1, x2, y2)
 
 
 #
@@ -1804,6 +1846,7 @@ class StripCharter:
         """
         axes = self.axes
         figureCanvas = axes.figure.canvas
+
         zoomed = figureCanvas.zoomed(axes)
 
         redraw = False
@@ -1825,11 +1868,7 @@ class StripCharter:
         """
         self.lines = {}
         axes = self.axes
-
-        if PROCESS_PLOT_ARGS_REQUIRED_AXES:
-            styleGen = _process_plot_var_args(axes)
-        else:
-            styleGen = _process_plot_var_args()
+        styleGen = _process_plot_var_args(axes)
 
         for channel in self.channels:
             self._plot_channel(channel, styleGen)
@@ -1837,16 +1876,8 @@ class StripCharter:
         if self.channels:
             lines  = [self.lines[x] for x in self.channels]
             labels = [x.get_label() for x in lines]
-            self.axes.legend(lines, labels, pad=0.1, axespad=0.0, numpoints=2,
-                handlelen=0.02, handletextsep=0.01,
-                prop=FontProperties(size='xx-small'))
-
-#        # Draw the legend on the figure instead...
-#        handles = [self.lines[x] for x in self.channels]
-#        labels = [x._label for x in handles]
-#        self.axes.figure.legend(handles, labels, 'upper right',
-#            pad=0.1, handlelen=0.02, handletextsep=0.01, numpoints=2,
-#            prop=FontProperties(size='xx-small'))
+            self.axes.legend(lines, labels, numpoints=2,
+                prop=FontProperties(size='x-small'))
 
     def _plot_channel(self, channel, styleGen):
         """
@@ -1907,9 +1938,11 @@ class StripCharter:
             if line.get_transform() != axes.transData:
                 xys = axes._get_verts_in_data_coords(
                     line.get_transform(), zip(x, y))
-                x = Numerix.array([a for (a, b) in xys])
-                y = Numerix.array([b for (a, b) in xys])
-            axes.update_datalim_numerix(x, y)
+            else:
+                xys = Numerix.zeros((x.shape[0], 2), Numerix.Float)
+                xys[:,0] = x
+                xys[:,1] = y
+            axes.update_datalim(xys)
 
         if zoomed:
             return axes.viewLim.overlaps(

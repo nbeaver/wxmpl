@@ -49,6 +49,11 @@ class StripchartApp(wx.App):
         return True
 
     def OnTimer(self):
+        # avoid wxPyDeadObject errors
+        if not isinstance(self.frame, wxmpl.PlotFrame):
+            self.timer.Stop()
+            return
+
         if self.numPoints == self.charter.channels[0].x.shape[0]:
             self.timer.Stop()
 

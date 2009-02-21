@@ -4,7 +4,7 @@
 # Purpose: Experiment data visualization
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2004-2006 Illinois Institute of Technology
+# Copyright 2004-2009 Illinois Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -32,6 +32,11 @@
 
 # ChangeLog
 #
+# 02-20-2009  Ken McIvor <mcivor@iit.edu>
+#  * Release 2.3.3
+#  * Stopped using the deprecated 'sre' module
+#  * Updated legend formatting for matplotlib 0.98.x
+#  * Dollar signs in axes labels are now properly escaped
 # 04-06-2006  Ken McIvor <mcivor@iit.edu>
 #  * Release 2.3.2
 #  * Had another go at shutting down cleanly after the "exit" command while in
@@ -135,7 +140,7 @@ __version__ = '2.3.2'
 
 import ConfigParser
 import os.path
-import sre
+import re
 import sys
 import threading
 
@@ -459,8 +464,7 @@ class QuickPlotDirector(PlotDirector):
                 % os.path.basename(sys.argv[0]))
             sys.exit(1)
 
-        axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
-            handletextsep=0.01, prop=FontProperties(size='xx-small'))
+        axes.legend(numpoints=2, prop=FontProperties(size='x-small'))
 
 
 class ExpressionPlotDirector(PlotDirector):
@@ -470,12 +474,12 @@ class ExpressionPlotDirector(PlotDirector):
 
         axes = frame.get_figure().gca()
         self.setup_axes(axes)
-        axes.set_ylabel(yExpr.replace('@', '$'))
+        axes.set_ylabel(yExpr.replace('@', '$').replace('$', '\$'))
 
         if xExpr is None:
             axes.set_xlabel('0...N')
         else:
-            axes.set_xlabel(xExpr.replace('@', '$'))
+            axes.set_xlabel(xExpr.replace('@', '$').replace('$', '\$'))
 
         lines = []
         for inputFile in inputFiles[:]:
@@ -515,8 +519,7 @@ class ExpressionPlotDirector(PlotDirector):
                 % os.path.basename(sys.argv[0]))
             sys.exit(1)
 
-        axes.legend(pad=0.1, axespad=0.0, numpoints=2, handlelen=0.02,
-            handletextsep=0.01, prop=FontProperties(size='xx-small'))
+        axes.legend(numpoints=2, prop=FontProperties(size='x-small'))
 
     def cleanup(self):
         pass
@@ -1046,9 +1049,9 @@ def evaluate_expression(expr, data, columnNames=()):
             pass
     return res
 
-COLNUMS    = sre.compile(r'(?P<column>(\$|\@)(?P<number>\d+))')
-COLNAMES   = sre.compile(r'(?P<column>(\$|\@)(?P<name>[a-zA-Z_][a-zA-Z0-9_]*))')
-PG_COLNUMS = sre.compile(r'(?P<column>\$f\[(?P<number>\d+)\])')
+COLNUMS    = re.compile(r'(?P<column>(\$|\@)(?P<number>\d+))')
+COLNAMES   = re.compile(r'(?P<column>(\$|\@)(?P<name>[a-zA-Z_][a-zA-Z0-9_]*))')
+PG_COLNUMS = re.compile(r'(?P<column>\$f\[(?P<number>\d+)\])')
 
 EVAL_NAMESPACE = {
     'int': int,
@@ -1086,8 +1089,8 @@ DWORD  = r'(\\.)|[^"\s]'
 SWORD  = r'(\\.)|[^\'\s]'
 DQUOTE = r'%s| |\t' % SWORD
 SQUOTE = r'%s| |\t' % SWORD
-RE_SKIP  = sre.compile(r'\s+')
-RE_TOKEN = sre.compile(r'(%s)+|("(%s|(\\.))*")|(\'(%s|(\\.))*\')' % (WORD,
+RE_SKIP  = re.compile(r'\s+')
+RE_TOKEN = re.compile(r'(%s)+|("(%s|(\\.))*")|(\'(%s|(\\.))*\')' % (WORD,
     DQUOTE, SQUOTE))
 
 def tokenize(string, limit=None):

@@ -63,8 +63,9 @@ class MyFrame(wx.Frame):
         axes = fig.gca()
 
         # store the current zoom limits
-        xlim = axes.get_xlim()
-        ylim = axes.get_ylim()
+        # NB: MPL 0.98.1 returns the underlying array objects of the limits
+        xlim = tuple(axes.get_xlim())
+        ylim = tuple(axes.get_ylim())
 
         # clear the axes and replot everything
         axes.cla()
@@ -128,5 +129,5 @@ class MyFrame(wx.Frame):
 #figure = app.get_figure()
 #plot_simple(figure)
 
-app = MyApp()
+app = MyApp(0)
 app.MainLoop()
