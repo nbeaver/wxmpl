@@ -2,4 +2,3 @@ include README.txt LICENSE.txt ChangeLog MANIFEST.in MANIFEST metasetup.py
 include plotit
 recursive-include demos *.py
 recursive-include reference *.css *.html
-recursive-include tutorial *.css *.html *.mkd *.png *.py
