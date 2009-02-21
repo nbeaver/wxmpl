@@ -11,7 +11,7 @@
 
 
 NAME    = 'wxmpl'
-VERSION = '1.2.9'
+VERSION = '1.3.0'
 
 AUTHOR       = 'Ken McIvor'
 AUTHOR_EMAIL = 'mcivor@iit.edu'
