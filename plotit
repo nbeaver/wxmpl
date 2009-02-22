@@ -32,6 +32,9 @@
 
 # ChangeLog
 #
+# 02-21-2009  Ken McIvor <mcivor@iit.edu>
+#  * Release 2.3.4
+#  * Fixed a bug that was breaking the quickplot ('-q') mode
 # 02-20-2009  Ken McIvor <mcivor@iit.edu>
 #  * Release 2.3.3
 #  * Stopped using the deprecated 'sre' module
@@ -626,28 +629,6 @@ class CommandInterpreter:
     def cmd_PLOT(self, args):
         return False
 
-#    def cmd_LINE(self, args):
-## TODO: make this command "lines X Y [label] *(X Y [label])"
-##        eqns = []
-##        for arg in args:
-##            eqns.extend(arg.split(';'))
-#
-#        l = len(args)
-#        if l < 2:
-#            return False
-#
-#        channel = CalculatingChannel(self.buffer, args[0], args[1])
-#
-#        if l == 3:
-#            channel.name = args[2]
-#        elif l == 4:
-#            channel.name = args[2]
-#            channel.lineStyle = args[3]
-#
-#        self.channels.append(channel)
-#        self.charter.setChannels(self.channels)
-#        return True
-
     def cmd_REPLOT(self, args):
         self.replot()
         return False
@@ -873,7 +854,7 @@ def quickplot_evaluate_file(fileName):
         print >> sys.stderr, (msg % args)
         return None, None
 
-    data = load_data(fileName)
+    data, columnNames = load_data(fileName)
     if data is None:
         return None, None
 

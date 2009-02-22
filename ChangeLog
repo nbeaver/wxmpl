@@ -1,3 +1,6 @@
+02-21-2009  Ken McIvor  <mcivor@iit.edu>
+	* Fixed a bug that was breaking plotit's quickplot mode ('-q')
+
 02-20-2009  Ken McIvor  <mcivor@iit.edu>
 	* Release: 1.3.0
 	* Compatability fixes for Matplotlib >= 0.98.1
