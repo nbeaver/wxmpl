@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 # Name: WxMplPoints.py
 # Purpose: Demonstrates point picking in WxMpl
 # Author: Ken McIvor <mcivor@iit.edu>
@@ -44,12 +45,13 @@ class MyFrame(wx.Frame):
     def _layout(self):
         btnSizer = wx.BoxSizer(wx.HORIZONTAL)
         btnSizer.Add((1, 1), 1, 0, 0)
-        btnSizer.Add(self.regionButton, 0, wx.BOTTOM|wx.RIGHT, 5)
-        btnSizer.Add(self.pointButton,  0, wx.BOTTOM|wx.RIGHT, 5)
+        btnSizer.Add(self.regionButton, 0, wx.RIGHT, 5)
+        btnSizer.Add(self.pointButton,  0)
+        btnSizer.Add((20, 1), 0, 0, 0)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.plotPanel, 0, wx.ALL, 5)
-        sizer.Add(btnSizer, 0, wx.EXPAND, 0)
+        sizer.Add(self.plotPanel, 1, wx.EXPAND, 5)
+        sizer.Add(btnSizer, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.Fit()
@@ -129,5 +131,5 @@ class MyFrame(wx.Frame):
 #figure = app.get_figure()
 #plot_simple(figure)
 
-app = MyApp(0)
+app = MyApp(False)
 app.MainLoop()

@@ -325,7 +325,7 @@ class TestFrame(wx.Frame):
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         for btn in buttons:
-            sizer.Add(btn, 0, wx.EXPAND)
+            sizer.Add(btn, 0, wx.EXPAND|wx.ALL, 5)
 
         self.SetSizer(sizer)
         self.Fit()
