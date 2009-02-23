@@ -31,7 +31,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.projections.polar import PolarAxes
 from matplotlib.transforms import Bbox
 
-__version__ = '1.3.0'
+__version__ = '2.0dev'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'PointEvent', 'EVT_POINT', 'SelectionEvent',
@@ -146,6 +146,16 @@ def format_coord(axes, xdata, ydata):
     if xdata is None or ydata is None:
         return ''
     return axes.format_coord(xdata, ydata)
+
+
+def toplevel_parent_of_window(window):
+    """
+    Returns the first top-level parent of a wx.Window
+    """
+    topwin = window
+    while not isinstance(topwin, wx.TopLevelWindow):
+        topwin = topwin.GetParent()
+    return topwin       
 
 
 class AxesLimits:
@@ -793,15 +803,11 @@ class FigurePrinter:
         keyword argument C{title} provides the printing framework with a title
         for the print job.
         """
-        window = self.view
-        while not isinstance(window, wx.Frame):
-            window = window.GetParent()
-            assert window is not None
-
+        topwin = toplevel_parent_of_window(self.view)
         fpo = FigurePrintout(figure, title)
         fpo4p = FigurePrintout(figure, title)
         preview = wx.PrintPreview(fpo, fpo4p, self.pData)
-        frame = wx.PreviewFrame(preview, window, 'Print Preview')
+        frame = wx.PreviewFrame(preview, topwin, 'Print Preview')
         if self.pData.GetOrientation() == wx.PORTRAIT:
             frame.SetSize(wx.Size(450, 625))
         else:
@@ -1117,21 +1123,11 @@ class PlotPanel(FigureCanvasWxAgg):
 
         # find the toplevel parent window and register an activation event
         # handler that is keyed to the id of this PlotPanel
-        topwin = self._get_toplevel_parent()
+        topwin = toplevel_parent_of_window(self)
         topwin.Connect(-1, self.GetId(), wx.wxEVT_ACTIVATE, self.OnActivate)
 
         wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground)
         wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
-
-    def _get_toplevel_parent(self):
-        """
-        Returns the first toplevel parent of this window.
-        """
-        topwin = self.GetParent()
-        while not isinstance(topwin, (wx.Frame, wx.Dialog)):
-            topwin = topwin.GetParent()
-            assert window is not None
-        return topwin       
 
     def OnActivate(self, evt):
         """
@@ -1156,7 +1152,7 @@ class PlotPanel(FigureCanvasWxAgg):
         """
         if self.GetId() == evt.GetEventObject().GetId():
             # unregister the activation event handler for this PlotPanel
-            topwin = self._get_toplevel_parent()
+            topwin = toplevel_parent_of_window(self)
             topwin.Disconnect(-1, self.GetId(), wx.wxEVT_ACTIVATE)
 
     def _onPaint(self, evt):

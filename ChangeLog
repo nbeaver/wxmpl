@@ -1,3 +1,7 @@
+02-22-2009  Ken McIvor  <mcivor@iit.edu>
+	* Fixed a serious bug in the way top-level parent windows were
+	  determined.
+
 02-21-2009  Ken McIvor  <mcivor@iit.edu>
 	* Fixed a bug that was breaking plotit's quickplot mode ('-q')
 

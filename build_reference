@@ -1,3 +1,4 @@
 #!/bin/sh
-rm -f reference/*
-epydoc -v --no-private --html -o reference -n WxMpl wxmpl
+rm -f reference/*.html reference/*.txt reference/*.css reference/*.js \
+    reference/*.png
+epydoc -v --no-private --parse-only --html -o reference -n WxMpl wxmpl
