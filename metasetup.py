@@ -116,7 +116,7 @@ import distutils.dist
 import distutils.log
 import distutils.util
 
-__metasetup_version__ = '1.0'
+__metasetup_version__ = '1.1'
 
 
 #

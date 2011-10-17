@@ -1,3 +1,7 @@
+10-17-2011  Carlo Segre <segre@iit.edu>
+        * Release 2.0.0
+        * Replaced all references to numerix with numpy functions
+
 02-22-2009  Ken McIvor  <mcivor@iit.edu>
 	* Fixed a serious bug in the way top-level parent windows were
 	  determined.

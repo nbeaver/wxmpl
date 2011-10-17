@@ -10,7 +10,7 @@
 import wx
 import time
 import wxmpl
-from matplotlib.numerix import arange, cos, sin, pi, exp
+from numpy import arange, cos, sin, pi, exp
 
 
 class StripchartApp(wx.App):

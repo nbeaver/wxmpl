@@ -12,7 +12,7 @@
 
 import wx
 import wxmpl
-import matplotlib.numerix as nx
+import numpy as NumPy
 import matplotlib.patches
 
 
@@ -57,9 +57,9 @@ class MyFrame(wx.Frame):
         self.Fit()
 
     def _replot(self):
-        PI = nx.pi
-        t = nx.arange(0.0, 2.0, 0.01)
-        s = nx.sin(2*PI*t)
+        PI = NumPy.pi
+        t = NumPy.arange(0.0, 2.0, 0.01)
+        s = NumPy.sin(2*PI*t)
 
         fig = self.plotPanel.get_figure()
         axes = fig.gca()
@@ -81,13 +81,13 @@ class MyFrame(wx.Frame):
 
         # plot the points
         if self.points:
-            pts  = nx.array(self.points)
-            ptsY = nx.cos(2*PI*pts)
+            pts  = NumPy.array(self.points)
+            ptsY = NumPy.cos(2*PI*pts)
             axes.plot(pts, ptsY, 'go', markersize=5, label='pts')
 
             if 1 < len(self.points):
-                rng  = nx.arange(min(self.points), max(self.points), 0.01)
-                rngY = nx.cos(2*PI*rng)
+                rng  = NumPy.arange(min(self.points), max(self.points), 0.01)
+                rngY = NumPy.cos(2*PI*rng)
                 axes.plot(rng, rngY, 'g-', linewidth=1,  label='cos')
 
         axes.set_xlabel('time (s)')

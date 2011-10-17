@@ -32,6 +32,9 @@
 
 # ChangeLog
 #
+# 10-17-2011  Carlo Segre <segre@iit.edu>
+#  * Release 3.0
+#  * Replace all references to Numerix with Numpy
 # 02-21-2009  Ken McIvor <mcivor@iit.edu>
 #  * Release 2.3.4
 #  * Fixed a bug that was breaking the quickplot ('-q') mode
@@ -188,7 +191,7 @@ except ImportError:
     xdp = None
 
 
-import matplotlib.numerix as Numerix
+import numpy as NumPy
 from matplotlib.font_manager import FontProperties
 
 
@@ -813,7 +816,7 @@ class ExpressionChannel(wxmpl.Channel):
 
         if (self.x is not None
         and not isinstance(self.x,
-         (Numerix.ArrayType, Numerix.ma.MaskedArray))):
+         (NumPy.ArrayType, NumPy.ma.MaskedArray))):
             return failure('Error evaluating X expression `%s\' for %s: '
                 'result is not a vector', self.xExpr, self.fileDesc)
 
@@ -834,7 +837,7 @@ class ExpressionChannel(wxmpl.Channel):
 
         if (self.y is not None
         and not isinstance(self.y,
-         (Numerix.ArrayType, Numerix.ma.MaskedArray))):
+         (NumPy.ArrayType, NumPy.ma.MaskedArray))):
             return failure('Error evaluating Y expression `%s\' for %s: '
                 'result is not a vector', self.yExpr, self.fileDesc)
 
@@ -859,7 +862,7 @@ def quickplot_evaluate_file(fileName):
         return None, None
 
     if data.shape[1] == 1:
-        return Numerix.arange(0, data.shape[0], 1, Numerix.Float), data[:, 0]
+        return NumPy.arange(0, data.shape[0], 1, dtype=float), data[:, 0]
     else:
         return data[:, 0], data[:, 1]
 
@@ -883,10 +886,10 @@ def evaluate_file(fileName, xExpr, yExpr):
     except Exception, e:
         return failure('Error evaluating Y for file `%s\': %s', fileName, e)
 
-    if not isinstance(x, (Numerix.ArrayType, Numerix.ma.MaskedArray)):
+    if not isinstance(x, (NumPy.ArrayType, NumPy.ma.MaskedArray)):
         return failure('Error evaluating X for file `%s\': result is not a '
             'vector', fileName)
-    elif not isinstance(y, (Numerix.ArrayType, Numerix.ma.MaskedArray)):
+    elif not isinstance(y, (NumPy.ArrayType, NumPy.ma.MaskedArray)):
         return failure('Error evaluating Y for file `%s\': result is not a '
             'vector', fileName)
 
@@ -970,7 +973,7 @@ def evaluate_expression(expr, data, columnNames=()):
     if data is None:
         return None
     elif expr is None:
-        return Numerix.arange(0, data.shape[0], 1, Numerix.Float)
+        return NumPy.arange(0, data.shape[0], 1, dtype=float)
 
     columnCount = data.shape[1]
     namespace = EVAL_NAMESPACE.copy()
@@ -1012,12 +1015,12 @@ def evaluate_expression(expr, data, columnNames=()):
 
     try:
         result = eval(code, namespace)
-        return Numerix.ma.masked_outside(result, -1e308, 1e308)
+        return NumPy.ma.masked_outside(result, -1e308, 1e308)
     except Exception, e:
         pass
 
     # evaluate one point at a time if necessary
-    res = Numerix.zeros((data.shape[0],), Numerix.Float)
+    res = NumPy.zeros((data.shape[0],), dtype=float)
     for i in range(0, data.shape[0]):
         for j in range(0, columnCount):
             namespace['__C_%d' % (j+1)] = data[i, j]
@@ -1038,26 +1041,26 @@ EVAL_NAMESPACE = {
     'int': int,
     'float': float,
     'complex': complex,
-    'pi': Numerix.pi,
-    'e': Numerix.e,
-    'abs': Numerix.absolute,
-    'arccos': Numerix.arccos,
-    'arccosh': Numerix.arccosh,
-    'arcsin': Numerix.arcsin,
-    'arcsinh': Numerix.arcsinh,
-    'arctan': Numerix.arctan,
-    'arctanh': Numerix.arctanh,
-    'cos': Numerix.cos,
-    'cosh': Numerix.cosh,
-    'exp': Numerix.exp,
-    'log': Numerix.log,
-    'log10': Numerix.log10,
-    'power': Numerix.power,
-    'sin': Numerix.sin,
-    'sinh': Numerix.sinh,
-    'sqrt': Numerix.sqrt,
-    'tan': Numerix.tan,
-    'tanh': Numerix.tanh
+    'pi': NumPy.pi,
+    'e': NumPy.e,
+    'abs': NumPy.absolute,
+    'arccos': NumPy.arccos,
+    'arccosh': NumPy.arccosh,
+    'arcsin': NumPy.arcsin,
+    'arcsinh': NumPy.arcsinh,
+    'arctan': NumPy.arctan,
+    'arctanh': NumPy.arctanh,
+    'cos': NumPy.cos,
+    'cosh': NumPy.cosh,
+    'exp': NumPy.exp,
+    'log': NumPy.log,
+    'log10': NumPy.log10,
+    'power': NumPy.power,
+    'sin': NumPy.sin,
+    'sinh': NumPy.sinh,
+    'sqrt': NumPy.sqrt,
+    'tan': NumPy.tan,
+    'tanh': NumPy.tanh
 }
 
 
