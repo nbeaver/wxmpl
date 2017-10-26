@@ -1,3 +1,7 @@
+10-19-2017  Jiranun Jiratrakanvong <jjiratra@hawk.iit.edu>
+        * Release: 2.1.0
+        * Remove all traces of numerix legacy code
+
 10-17-2011  Carlo Segre <segre@iit.edu>
         * Release 2.0.0
         * Replaced all references to numerix with numpy functions
