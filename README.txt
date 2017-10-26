@@ -66,7 +66,7 @@ WxMpl was written by Ken McIvor <mcivor@iit.edu>
 COPYRIGHT & LICENSE
 -------------------
 
-  Copyright 2005-2009 Illinois Institute of Technology
+  Copyright 2005-2017 Illinois Institute of Technology
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the

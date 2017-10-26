@@ -64,7 +64,7 @@
 # License Agreement for Python 2.4.
 #
 #
-# Copyright 2005-2006 Illinois Institute of Technology
+# Copyright 2005-2017 Illinois Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the

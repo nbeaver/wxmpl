@@ -1,7 +1,7 @@
 # Purpose: painless matplotlib embedding for wxPython
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2005-2009 Illinois Institute of Technology
+# Copyright 2005-2017 Illinois Institute of Technology
 #
 # See the file "LICENSE" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -21,17 +21,16 @@ import weakref
 
 import matplotlib
 matplotlib.use('WXAgg')
-import numpy as NumPy
-from matplotlib.axes import _process_plot_var_args
+import numpy as np
+from matplotlib.axes._base import _process_plot_var_args
 from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_agg import FigureCanvasAgg, RendererAgg
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
-from matplotlib.projections.polar import PolarAxes
 from matplotlib.transforms import Bbox
 
-__version__ = '2.0dev'
+__version__ = '2.1.0'
 
 __all__ = ['PlotPanel', 'PlotFrame', 'PlotApp', 'StripCharter', 'Channel',
     'FigurePrinter', 'PointEvent', 'EVT_POINT', 'SelectionEvent',
@@ -153,7 +152,7 @@ def toplevel_parent_of_window(window):
     Returns the first top-level parent of a wx.Window
     """
     topwin = window
-    while not isinstance(topwin, wx.TopLevelWindow):
+    while topwin is not None and not isinstance(topwin, wx.TopLevelWindow):
         topwin = topwin.GetParent()
     return topwin       
 
@@ -219,6 +218,7 @@ class AxesLimits:
 
         xrange, yrange = history.pop()
         if self.autoscaleUnzoom and not len(history):
+            axes.set_autoscale_on(True)
             axes.autoscale_view()
         else:
             axes.set_xlim(xrange)
@@ -525,7 +525,7 @@ class Painter:
         dc.SetTextForeground(self.TEXT_FOREGROUND)
         dc.SetTextBackground(self.TEXT_BACKGROUND)
         dc.SetLogicalFunction(self.FUNCTION)
-        dc.BeginDrawing()
+        # dc.BeginDrawing() # deplicated
 
         if self.lastValue is not None:
             self.clearValue(dc, self.lastValue)
@@ -535,7 +535,7 @@ class Painter:
             self.drawValue(dc, value)
             self.lastValue = value
 
-        dc.EndDrawing()
+        # dc.EndDrawing() # deplicated
 
     def formatValue(self, value):
         """
@@ -1124,10 +1124,15 @@ class PlotPanel(FigureCanvasWxAgg):
         # find the toplevel parent window and register an activation event
         # handler that is keyed to the id of this PlotPanel
         topwin = toplevel_parent_of_window(self)
-        topwin.Connect(-1, self.GetId(), wx.wxEVT_ACTIVATE, self.OnActivate)
 
-        wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground)
-        wx.EVT_WINDOW_DESTROY(self, self.OnDestroy)
+        # From https://groups.google.com/forum/#!topic/wxpython-dev/4ePCBBgHxDc
+        # topwin.Connect(-1, self.GetId(), wx.wxEVT_ACTIVATE, self.OnActivate)
+        topwin.Bind(wx.EVT_ACTIVATE, self.OnActivate)
+
+        # wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground) # wxPyDeprecationWarning
+        self.Bind(wx.EVT_ERASE_BACKGROUND, self.OnEraseBackground)
+        # wx.EVT_WINDOW_DESTROY(self, self.OnDestroy) # wxPyDeprecationWarning
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.OnDestroy)
 
     def OnActivate(self, evt):
         """
@@ -1153,7 +1158,8 @@ class PlotPanel(FigureCanvasWxAgg):
         if self.GetId() == evt.GetEventObject().GetId():
             # unregister the activation event handler for this PlotPanel
             topwin = toplevel_parent_of_window(self)
-            topwin.Disconnect(-1, self.GetId(), wx.wxEVT_ACTIVATE)
+            if topwin is not None:
+                topwin.Disconnect(-1, self.GetId(), wx.wxEVT_ACTIVATE)
 
     def _onPaint(self, evt):
         """
@@ -1649,7 +1655,7 @@ class VectorBuffer:
     accomodate new entries.
     """
     def __init__(self):
-        self.data = NumPy.zeros((16,), dtype=float)
+        self.data = np.zeros((16,), np.float)
         self.nextRow = 0
 
     def clear(self):
@@ -1663,7 +1669,7 @@ class VectorBuffer:
         """
         Zero and reset this buffer, releasing the underlying array.
         """
-        self.data = NumPy.zeros((16,), dtype=float)
+        self.data = np.zeros((16,), np.float)
         self.nextRow = 0
 
     def append(self, point):
@@ -1675,11 +1681,11 @@ class VectorBuffer:
 
         resize = False
         if nextRow == data.shape[0]:
-            nR = int(NumPy.ceil(self.data.shape[0]*1.5))
+            nR = int(np.ceil(self.data.shape[0]*1.5))
             resize = True
 
         if resize:
-            self.data = NumPy.zeros((nR,), dtype=float)
+            self.data = np.zeros((nR,), np.float)
             self.data[0:data.shape[0]] = data
 
         self.data[nextRow] = point
@@ -1701,7 +1707,7 @@ class MatrixBuffer:
     accomodate new rows of entries.
     """
     def __init__(self):
-        self.data = NumPy.zeros((16, 1), dtype=float)
+        self.data = np.zeros((16, 1), np.float)
         self.nextRow = 0
 
     def clear(self):
@@ -1715,14 +1721,14 @@ class MatrixBuffer:
         """
         Zero and reset this buffer, releasing the underlying array.
         """
-        self.data = NumPy.zeros((16, 1), dtype=float)
+        self.data = np.zeros((16, 1), np.float)
         self.nextRow = 0
 
     def append(self, row):
         """
         Append a new row of entries to the end of this buffer's matrix.
         """
-        row = NumPy.asarray(row, dtype=float)
+        row = np.asarray(row, np.float)
         nextRow = self.nextRow
         data = self.data
         nPts = row.shape[0]
@@ -1733,7 +1739,7 @@ class MatrixBuffer:
         resize = True
         if nextRow == data.shape[0]:
             nC = data.shape[1]
-            nR = int(NumPy.ceil(self.data.shape[0]*1.5))
+            nR = int(np.ceil(self.data.shape[0]*1.5))
             if nC < nPts:
                 nC = nPts
         elif data.shape[1] < nPts:
@@ -1743,7 +1749,7 @@ class MatrixBuffer:
             resize = False
 
         if resize:
-            self.data = NumPy.zeros((nR, nC), dtype=float)
+            self.data = np.zeros((nR, nC), np.float)
             rowEnd, colEnd = data.shape
             self.data[0:rowEnd, 0:colEnd] = data
 
@@ -1935,7 +1941,7 @@ class StripCharter:
                 xys = axes._get_verts_in_data_coords(
                     line.get_transform(), zip(x, y))
             else:
-                xys = NumPy.zeros((x.shape[0], 2), dtype=float)
+                xys = np.zeros((x.shape[0], 2), np.float)
                 xys[:,0] = x
                 xys[:,1] = y
             axes.update_datalim(xys)

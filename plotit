@@ -4,7 +4,7 @@
 # Purpose: Experiment data visualization
 # Author: Ken McIvor <mcivor@iit.edu>
 #
-# Copyright 2004-2009 Illinois Institute of Technology
+# Copyright 2004-2017 Illinois Institute of Technology
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -141,7 +141,7 @@
 # 10-03-2004  Ken McIvor <mcivken@iit.edu>
 #   * release: 1.0
 
-__version__ = '2.3.2'
+__version__ = '3.0.0'
 
 
 import ConfigParser
