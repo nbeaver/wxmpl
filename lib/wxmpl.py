@@ -527,7 +527,7 @@ class Painter:
         dc.SetTextForeground(self.TEXT_FOREGROUND)
         dc.SetTextBackground(self.TEXT_BACKGROUND)
         dc.SetLogicalFunction(self.FUNCTION)
-        # dc.BeginDrawing() # deprecated
+        # dc.BeginDrawing() # deprecated, might need for Windows!
 
         if self.lastValue is not None:
             self.clearValue(dc, self.lastValue)
@@ -537,7 +537,7 @@ class Painter:
             self.drawValue(dc, value)
             self.lastValue = value
 
-        # dc.EndDrawing() # deprecated
+        # dc.EndDrawing() # deprecated, might need for Windows!
 
     def formatValue(self, value):
         """
