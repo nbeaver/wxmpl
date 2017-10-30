@@ -5,7 +5,9 @@
 #
 # See the file "LICENSE" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-
+#
+# 2017-10-29 - Incorporating patches form Olly Betts and fixes by Jiranun
+#
 """
 Embedding matplotlib in wxPython applications is straightforward, but the
 default plotting widget lacks the capabilities necessary for interactive use.
@@ -1126,7 +1128,10 @@ class PlotPanel(FigureCanvasWxAgg):
         topwin = toplevel_parent_of_window(self)
 
         # From https://groups.google.com/forum/#!topic/wxpython-dev/4ePCBBgHxDc
+        # This is the original code
         # topwin.Connect(-1, self.GetId(), wx.wxEVT_ACTIVATE, self.OnActivate)
+        # This is the patch from Olly Betts
+        # topwin.Connect(self.GetId(), -1, wx.wxEVT_ACTIVATE, self.OnActivate)
         topwin.Bind(wx.EVT_ACTIVATE, self.OnActivate)
 
         # wx.EVT_ERASE_BACKGROUND(self, self.OnEraseBackground) # wxPyDeprecationWarning
@@ -1428,7 +1433,7 @@ class PlotFrame(wx.Frame):
         fileName = wx.FileSelector('Save Plot', default_extension='png',
             wildcard=('Portable Network Graphics (*.png)|*.png|'
                 + 'Encapsulated Postscript (*.eps)|*.eps|All files (*.*)|*.*'),
-            parent=self, flags=wx.SAVE|wx.OVERWRITE_PROMPT)
+            parent=self, flags=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
 
         if not fileName:
             return

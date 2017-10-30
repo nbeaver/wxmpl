@@ -3,16 +3,19 @@
 # Author: Ken McIvor <mcivor@iit.edu>, deriving from the matplotlib examples
 # collection
 #
-# Copyright 2002-2004 John D. Hunter, 2005 Illinois Institute of Technology
+# Copyright 2002-2004 John D. Hunter, 2005-2017 Illinois Institute of Technology
 #
 # Distributed under the license agreement for matplotlib 0.72.
 #
 # For information on the usage and redistribution of this file, and for a
 # DISCLAIMER OF ALL WARRANTIES, see the file "LICENSE" that ships with the
 # matplotlib 0.72 or http://matplotlib.sourceforge.net/license.html
+#
+# 1.1 - change for compatibility with Python 3.0 and matplotlib 2.0.0 
+#       per patch by Olly Betts (C. Segre - 2017-10-29)
+#
 
-
-__version__ = '1.0'
+__version__ = '1.1'
 
 
 import wx
@@ -337,7 +340,7 @@ class TestFrame(wx.Frame):
 
 
 def main():
-    app = wx.PySimpleApp()
+    app = wx.App(False)
     frame = TestFrame(None, -1, 'WxMpl Demos')
     frame.Show(True)
     app.MainLoop()
