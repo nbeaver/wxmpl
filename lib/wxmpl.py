@@ -525,7 +525,7 @@ class Painter:
         dc.SetTextForeground(self.TEXT_FOREGROUND)
         dc.SetTextBackground(self.TEXT_BACKGROUND)
         dc.SetLogicalFunction(self.FUNCTION)
-        # dc.BeginDrawing() # deplicated
+        # dc.BeginDrawing() # deprecated
 
         if self.lastValue is not None:
             self.clearValue(dc, self.lastValue)
@@ -535,7 +535,7 @@ class Painter:
             self.drawValue(dc, value)
             self.lastValue = value
 
-        # dc.EndDrawing() # deplicated
+        # dc.EndDrawing() # deprecated
 
     def formatValue(self, value):
         """
@@ -1346,7 +1346,7 @@ class PlotFrame(wx.Frame):
     ABOUT_TITLE = 'About wxmpl.PlotFrame'
     ABOUT_MESSAGE = ('wxmpl.PlotFrame %s\n' %  __version__
         + 'Written by Ken McIvor <mcivor@iit.edu>\n'
-        + 'Copyright 2005-2009 Illinois Institute of Technology')
+        + 'Copyright 2005-2017 Illinois Institute of Technology')
 
     def __init__(self, parent, id, title, size=(6.0, 3.7), dpi=96, cursor=True,
      location=True, crosshairs=True, selection=True, zoom=True,

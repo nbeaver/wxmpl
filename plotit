@@ -191,7 +191,7 @@ except ImportError:
     xdp = None
 
 
-import numpy as NumPy
+import numpy as np
 from matplotlib.font_manager import FontProperties
 
 
@@ -816,7 +816,7 @@ class ExpressionChannel(wxmpl.Channel):
 
         if (self.x is not None
         and not isinstance(self.x,
-         (NumPy.ArrayType, NumPy.ma.MaskedArray))):
+         (np.ArrayType, np.ma.MaskedArray))):
             return failure('Error evaluating X expression `%s\' for %s: '
                 'result is not a vector', self.xExpr, self.fileDesc)
 
@@ -837,7 +837,7 @@ class ExpressionChannel(wxmpl.Channel):
 
         if (self.y is not None
         and not isinstance(self.y,
-         (NumPy.ArrayType, NumPy.ma.MaskedArray))):
+         (np.ArrayType, np.ma.MaskedArray))):
             return failure('Error evaluating Y expression `%s\' for %s: '
                 'result is not a vector', self.yExpr, self.fileDesc)
 
@@ -862,7 +862,7 @@ def quickplot_evaluate_file(fileName):
         return None, None
 
     if data.shape[1] == 1:
-        return NumPy.arange(0, data.shape[0], 1, dtype=float), data[:, 0]
+        return np.arange(0, data.shape[0], 1, dtype=float), data[:, 0]
     else:
         return data[:, 0], data[:, 1]
 
@@ -886,10 +886,10 @@ def evaluate_file(fileName, xExpr, yExpr):
     except Exception, e:
         return failure('Error evaluating Y for file `%s\': %s', fileName, e)
 
-    if not isinstance(x, (NumPy.ArrayType, NumPy.ma.MaskedArray)):
+    if not isinstance(x, (np.ArrayType, np.ma.MaskedArray)):
         return failure('Error evaluating X for file `%s\': result is not a '
             'vector', fileName)
-    elif not isinstance(y, (NumPy.ArrayType, NumPy.ma.MaskedArray)):
+    elif not isinstance(y, (np.ArrayType, np.ma.MaskedArray)):
         return failure('Error evaluating Y for file `%s\': result is not a '
             'vector', fileName)
 
@@ -973,7 +973,7 @@ def evaluate_expression(expr, data, columnNames=()):
     if data is None:
         return None
     elif expr is None:
-        return NumPy.arange(0, data.shape[0], 1, dtype=float)
+        return np.arange(0, data.shape[0], 1, dtype=float)
 
     columnCount = data.shape[1]
     namespace = EVAL_NAMESPACE.copy()
@@ -1015,12 +1015,12 @@ def evaluate_expression(expr, data, columnNames=()):
 
     try:
         result = eval(code, namespace)
-        return NumPy.ma.masked_outside(result, -1e308, 1e308)
+        return np.ma.masked_outside(result, -1e308, 1e308)
     except Exception, e:
         pass
 
     # evaluate one point at a time if necessary
-    res = NumPy.zeros((data.shape[0],), dtype=float)
+    res = np.zeros((data.shape[0],), dtype=float)
     for i in range(0, data.shape[0]):
         for j in range(0, columnCount):
             namespace['__C_%d' % (j+1)] = data[i, j]
@@ -1041,26 +1041,26 @@ EVAL_NAMESPACE = {
     'int': int,
     'float': float,
     'complex': complex,
-    'pi': NumPy.pi,
-    'e': NumPy.e,
-    'abs': NumPy.absolute,
-    'arccos': NumPy.arccos,
-    'arccosh': NumPy.arccosh,
-    'arcsin': NumPy.arcsin,
-    'arcsinh': NumPy.arcsinh,
-    'arctan': NumPy.arctan,
-    'arctanh': NumPy.arctanh,
-    'cos': NumPy.cos,
-    'cosh': NumPy.cosh,
-    'exp': NumPy.exp,
-    'log': NumPy.log,
-    'log10': NumPy.log10,
-    'power': NumPy.power,
-    'sin': NumPy.sin,
-    'sinh': NumPy.sinh,
-    'sqrt': NumPy.sqrt,
-    'tan': NumPy.tan,
-    'tanh': NumPy.tanh
+    'pi': np.pi,
+    'e': np.e,
+    'abs': np.absolute,
+    'arccos': np.arccos,
+    'arccosh': np.arccosh,
+    'arcsin': np.arcsin,
+    'arcsinh': np.arcsinh,
+    'arctan': np.arctan,
+    'arctanh': np.arctanh,
+    'cos': np.cos,
+    'cosh': np.cosh,
+    'exp': np.exp,
+    'log': np.log,
+    'log10': np.log10,
+    'power': np.power,
+    'sin': np.sin,
+    'sinh': np.sinh,
+    'sqrt': np.sqrt,
+    'tan': np.tan,
+    'tanh': np.tanh
 }
 
 
